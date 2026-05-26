@@ -50,10 +50,19 @@ export interface ParkingSession {
 export interface PricingRule {
   id: string
   vehicleType: VehicleType
-  ratePerHour: number
-  rateFirstHour: number
-  maxDailyRate: number
-  effectiveFrom: string
+  normalRate: number      // VND/giờ thường
+  peakRate: number        // VND/giờ cao điểm
+  overnightRate: number   // VND/đêm
+  isActive: boolean
+  updatedAt: string
+}
+
+export interface PeakHourRange {
+  id: string
+  label: string       // Ví dụ: "Buổi sáng"
+  startTime: string   // "07:00"
+  endTime: string     // "09:00"
+  days: string[]      // ["T2","T3","T4","T5","T6"]
 }
 
 export interface AuthState {
