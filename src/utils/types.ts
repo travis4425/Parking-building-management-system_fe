@@ -27,6 +27,7 @@ export interface ParkingSlot {
   vehicleType: VehicleType
   currentPlate?: string
   sessionId?: string
+  updatedAt: string   // ISO string — dùng cho IoT simulation timestamp
 }
 
 export interface ParkingSession {
