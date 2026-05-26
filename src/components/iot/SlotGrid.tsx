@@ -11,6 +11,7 @@ const STATUS_STYLES: Record<SlotStatus, string> = {
   occupied:    'bg-red-500 hover:bg-red-600 border-red-600',
   reserved:    'bg-yellow-400 hover:bg-yellow-500 border-yellow-500',
   maintenance: 'bg-gray-100 border-2 border-dashed border-gray-400 hover:bg-gray-200',
+  locked:      'bg-slate-600 hover:bg-slate-700 border-slate-700',
 }
 
 const STATUS_LABEL: Record<SlotStatus, string> = {
@@ -18,6 +19,7 @@ const STATUS_LABEL: Record<SlotStatus, string> = {
   occupied:    'Có xe',
   reserved:    'Đặt trước',
   maintenance: 'Bảo trì',
+  locked:      'Khóa',
 }
 
 const STATUS_TEXT: Record<SlotStatus, string> = {
@@ -25,6 +27,7 @@ const STATUS_TEXT: Record<SlotStatus, string> = {
   occupied:    'text-red-700',
   reserved:    'text-yellow-700',
   maintenance: 'text-gray-500',
+  locked:      'text-slate-700',
 }
 
 // ─── Legend ──────────────────────────────────────────────────────────────────
@@ -33,6 +36,7 @@ const LEGEND_ITEMS: { status: SlotStatus; label: string }[] = [
   { status: 'occupied',    label: 'Có xe' },
   { status: 'reserved',    label: 'Đặt trước' },
   { status: 'maintenance', label: 'Bảo trì' },
+  { status: 'locked',      label: 'Khóa' },
 ]
 
 // ─── Format thời gian cập nhật ────────────────────────────────────────────────
