@@ -13,7 +13,8 @@ export interface User {
 }
 
 // Trạng thái của từng slot đỗ xe
-export type SlotStatus = 'available' | 'occupied' | 'reserved' | 'maintenance'
+// available/occupied/reserved: do hệ thống tự set | maintenance/locked: do manager set thủ công
+export type SlotStatus = 'available' | 'occupied' | 'reserved' | 'maintenance' | 'locked'
 
 // Loại xe
 export type VehicleType = 'motorbike' | 'car' | 'truck'
