@@ -4,6 +4,7 @@ import ProtectedRoute from '@/components/layout/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
 import LoginPage from '@/pages/auth/LoginPage'
 import ManagerDashboard from '@/pages/manager/ManagerDashboard'
+import SlotManagement from '@/pages/manager/SlotManagement'
 import StaffDashboard from '@/pages/staff/StaffDashboard'
 import DriverHome from '@/pages/driver/DriverHome'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
@@ -42,8 +43,8 @@ export default function App() {
           path="/manager/slots"
           element={
             <ProtectedRoute allowedRoles={['manager']}>
-              <AppLayout pageTitle="Quản lý bãi xe">
-                <ManagerDashboard />
+              <AppLayout pageTitle="Quản lý slot">
+                <SlotManagement />
               </AppLayout>
             </ProtectedRoute>
           }
