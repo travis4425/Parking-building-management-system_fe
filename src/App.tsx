@@ -5,6 +5,8 @@ import AppLayout from '@/components/layout/AppLayout'
 import LoginPage from '@/pages/auth/LoginPage'
 import ManagerDashboard from '@/pages/manager/ManagerDashboard'
 import SlotManagement from '@/pages/manager/SlotManagement'
+import PricingManagement from '@/pages/manager/PricingManagement'
+import Reports from '@/pages/manager/Reports'
 import StaffDashboard from '@/pages/staff/StaffDashboard'
 import DriverHome from '@/pages/driver/DriverHome'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
@@ -64,7 +66,7 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['manager']}>
               <AppLayout pageTitle="Bảng giá">
-                <ManagerDashboard />
+                <PricingManagement />
               </AppLayout>
             </ProtectedRoute>
           }
@@ -74,7 +76,7 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['manager']}>
               <AppLayout pageTitle="Báo cáo">
-                <ManagerDashboard />
+                <Reports />
               </AppLayout>
             </ProtectedRoute>
           }
