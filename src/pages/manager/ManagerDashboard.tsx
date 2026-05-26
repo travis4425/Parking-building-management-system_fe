@@ -4,7 +4,7 @@ import { cn } from '@/utils/cn'
 import PageWrapper from '@/components/layout/PageWrapper'
 import SlotGrid from '@/components/iot/SlotGrid'
 import { useSlotSimulation } from '@/hooks/useSlotSimulation'
-import { INITIAL_SLOTS, MOCK_STATS } from '@/api/mockSlots'
+import { MOCK_STATS } from '@/api/mockSlots'
 
 // ─── Kiểu dữ liệu metric card ────────────────────────────────────────────────
 interface MetricCard {
@@ -26,7 +26,8 @@ function formatVND(amount: number): string {
 }
 
 export default function ManagerDashboard() {
-  const { slots, lastUpdated, changedIds, stats } = useSlotSimulation(INITIAL_SLOTS)
+  // Không truyền initialSlots — hook tự đọc từ slotStore (share state với SlotManagement)
+  const { slots, lastUpdated, changedIds, stats } = useSlotSimulation()
 
   // Metric cards — 2 card đầu dùng stats realtime từ simulation
   const metrics: MetricCard[] = [
