@@ -70,3 +70,15 @@ export interface AuthState {
   token: string | null
   isAuthenticated: boolean
 }
+
+// Loại cảnh báo IoT từ cảm biến hoặc hệ thống phát hiện
+export type AlertType = 'sensor_error' | 'session_overtime' | 'wrong_zone'
+
+export interface ParkingAlert {
+  id: string
+  type: AlertType
+  slotCode: string
+  message: string
+  timestamp: string   // ISO string
+  status: 'pending' | 'resolved'
+}
