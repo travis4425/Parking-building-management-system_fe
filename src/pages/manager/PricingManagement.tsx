@@ -224,6 +224,10 @@ export default function PricingManagement() {
     setPeakModal({ open: false, peak: null })
   }
 
+  function deleteRule(id: string) {
+    setRules((prev) => prev.filter((r) => r.id !== id))
+  }
+
   function deletePeakHour(id: string) {
     setPeakHours((prev) => prev.filter((p) => p.id !== id))
   }
@@ -282,13 +286,22 @@ export default function PricingManagement() {
                     {new Date(rule.updatedAt).toLocaleDateString('vi-VN')}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() => setPricingModal({ open: true, rule })}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                      title="Sửa mức giá"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => setPricingModal({ open: true, rule })}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                        title="Sửa mức giá"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => deleteRule(rule.id)}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        title="Xóa mức giá"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
