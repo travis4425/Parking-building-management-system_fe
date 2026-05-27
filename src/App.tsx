@@ -103,6 +103,17 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        {/* /staff/dashboard alias → cùng component với /staff */}
+        <Route
+          path="/staff/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={['staff']}>
+              <AppLayout pageTitle="Dashboard ca trực">
+                <StaffDashboard />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/staff/checkin"
           element={
