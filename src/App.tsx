@@ -8,6 +8,7 @@ import SlotManagement from '@/pages/manager/SlotManagement'
 import PricingManagement from '@/pages/manager/PricingManagement'
 import Reports from '@/pages/manager/Reports'
 import StaffDashboard from '@/pages/staff/StaffDashboard'
+import CheckIn from '@/pages/staff/CheckIn'
 import DriverHome from '@/pages/driver/DriverHome'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
 import { useAuthStore, getHomeByRole } from '@/store/authStore'
@@ -119,7 +120,7 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['staff']}>
               <AppLayout pageTitle="Xe vào">
-                <StaffDashboard />
+                <CheckIn />
               </AppLayout>
             </ProtectedRoute>
           }
