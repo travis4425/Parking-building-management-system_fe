@@ -44,7 +44,9 @@ export interface ParkingSession {
   checkOutTime?: string
   fee?: number
   status: 'active' | 'completed' | 'exception'
-  qrCode: string        // Mã QR của session
+  qrCode: string        // UUID dùng để quét khi xe ra
+  entryGate?: string    // Cổng vào xe
+  notes?: string        // Ghi chú của nhân viên
 }
 
 export interface PricingRule {
