@@ -7,6 +7,8 @@ interface SessionStore {
   addSession:      (session: ParkingSession) => void
   completeSession: (id: string, fee: number, staffId: string) => void
   getBySlot:       (slotId: string) => ParkingSession | undefined
+  findByQR:        (qrCode: string) => ParkingSession | undefined
+  findByPlate:     (plate: string)  => ParkingSession | undefined
 }
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
@@ -24,6 +26,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       ),
     })),
 
-  getBySlot: (slotId) =>
-    get().sessions.find((s) => s.slotId === slotId && s.status === 'active'),
+  getBySlot:   (slotId)  => get().sessions.find((s) => s.slotId === slotId && s.status === 'active'),
+  findByQR:    (qrCode)  => get().sessions.find((s) => s.qrCode === qrCode && s.status === 'active'),
+  findByPlate: (plate)   => get().sessions.find(
+    (s) => s.vehiclePlate.replace(/[.\-\s]/g, '').toUpperCase() ===
+           plate.replace(/[.\-\s]/g, '').toUpperCase() && s.status === 'active'
+  ),
 }))
