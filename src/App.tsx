@@ -10,6 +10,7 @@ import Reports from '@/pages/manager/Reports'
 import StaffDashboard from '@/pages/staff/StaffDashboard'
 import CheckIn from '@/pages/staff/CheckIn'
 import CheckOut from '@/pages/staff/CheckOut'
+import StaffExceptions from '@/pages/staff/StaffExceptions'
 import DriverHome from '@/pages/driver/DriverHome'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
 import { useAuthStore, getHomeByRole } from '@/store/authStore'
@@ -150,8 +151,8 @@ export default function App() {
           path="/staff/exceptions"
           element={
             <ProtectedRoute allowedRoles={['staff']}>
-              <AppLayout pageTitle="Ngoại lệ">
-                <StaffDashboard />
+              <AppLayout pageTitle="Xử lý ngoại lệ">
+                <StaffExceptions />
               </AppLayout>
             </ProtectedRoute>
           }
