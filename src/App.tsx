@@ -13,6 +13,7 @@ import CheckOut from '@/pages/staff/CheckOut'
 import StaffPayment from '@/pages/staff/StaffPayment'
 import StaffExceptions from '@/pages/staff/StaffExceptions'
 import DriverHome from '@/pages/driver/DriverHome'
+import DriverLayout from '@/components/layout/DriverLayout'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
 import { useAuthStore, getHomeByRole } from '@/store/authStore'
 
@@ -159,14 +160,14 @@ export default function App() {
           }
         />
 
-        {/* === DRIVER ROUTES === */}
+        {/* === DRIVER ROUTES — dùng DriverLayout (bottom nav, không có sidebar) === */}
         <Route
           path="/driver"
           element={
             <ProtectedRoute allowedRoles={['driver']}>
-              <AppLayout pageTitle="Trang chủ">
+              <DriverLayout pageTitle="Trang chủ">
                 <DriverHome />
-              </AppLayout>
+              </DriverLayout>
             </ProtectedRoute>
           }
         />
@@ -174,9 +175,9 @@ export default function App() {
           path="/driver/pricing"
           element={
             <ProtectedRoute allowedRoles={['driver']}>
-              <AppLayout pageTitle="Bảng giá">
+              <DriverLayout pageTitle="Bảng giá">
                 <DriverHome />
-              </AppLayout>
+              </DriverLayout>
             </ProtectedRoute>
           }
         />
@@ -184,9 +185,9 @@ export default function App() {
           path="/driver/booking"
           element={
             <ProtectedRoute allowedRoles={['driver']}>
-              <AppLayout pageTitle="Đặt chỗ">
+              <DriverLayout pageTitle="Đặt chỗ">
                 <DriverHome />
-              </AppLayout>
+              </DriverLayout>
             </ProtectedRoute>
           }
         />
@@ -194,9 +195,9 @@ export default function App() {
           path="/driver/history"
           element={
             <ProtectedRoute allowedRoles={['driver']}>
-              <AppLayout pageTitle="Lịch sử">
+              <DriverLayout pageTitle="Lịch sử">
                 <DriverHome />
-              </AppLayout>
+              </DriverLayout>
             </ProtectedRoute>
           }
         />
