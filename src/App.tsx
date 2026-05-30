@@ -10,6 +10,7 @@ import Reports from '@/pages/manager/Reports'
 import StaffDashboard from '@/pages/staff/StaffDashboard'
 import CheckIn from '@/pages/staff/CheckIn'
 import CheckOut from '@/pages/staff/CheckOut'
+import StaffPayment from '@/pages/staff/StaffPayment'
 import StaffExceptions from '@/pages/staff/StaffExceptions'
 import DriverHome from '@/pages/driver/DriverHome'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
@@ -142,7 +143,7 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['staff']}>
               <AppLayout pageTitle="Thu phí">
-                <StaffDashboard />
+                <StaffPayment />
               </AppLayout>
             </ProtectedRoute>
           }
