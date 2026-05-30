@@ -31,6 +31,9 @@ export interface ParkingSlot {
   updatedAt: string   // ISO string — dùng cho IoT simulation timestamp
 }
 
+// Hình thức thanh toán — dùng chung giữa CheckOut, StaffPayment, Receipt
+export type PayMethod = 'cash' | 'qr' | 'card'
+
 export interface ParkingSession {
   id: string
   slotId: string
@@ -43,7 +46,8 @@ export interface ParkingSession {
   checkInTime: string   // ISO string
   checkOutTime?: string
   fee?: number
-  status: 'active' | 'completed' | 'exception'
+  // paid = đã thu phí nhưng xe chưa ra | completed = xe đã ra, slot freed
+  status: 'active' | 'paid' | 'completed' | 'exception'
   qrCode: string        // UUID dùng để quét khi xe ra
   entryGate?: string    // Cổng vào xe
   notes?: string        // Ghi chú của nhân viên
