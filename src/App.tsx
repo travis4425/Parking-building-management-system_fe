@@ -13,6 +13,7 @@ import CheckOut from '@/pages/staff/CheckOut'
 import StaffPayment from '@/pages/staff/StaffPayment'
 import StaffExceptions from '@/pages/staff/StaffExceptions'
 import DriverHome from '@/pages/driver/DriverHome'
+import DriverPayment from '@/pages/driver/DriverPayment'
 import DriverLayout from '@/components/layout/DriverLayout'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
 import { useAuthStore, getHomeByRole } from '@/store/authStore'
@@ -197,6 +198,17 @@ export default function App() {
             <ProtectedRoute allowedRoles={['driver']}>
               <DriverLayout pageTitle="Lịch sử">
                 <DriverHome />
+              </DriverLayout>
+            </ProtectedRoute>
+          }
+        />
+        {/* Kiosk thanh toán — accessible trực tiếp từ URL, không có trong bottom nav */}
+        <Route
+          path="/driver/payment"
+          element={
+            <ProtectedRoute allowedRoles={['driver']}>
+              <DriverLayout pageTitle="Kiosk Thanh toán">
+                <DriverPayment />
               </DriverLayout>
             </ProtectedRoute>
           }
