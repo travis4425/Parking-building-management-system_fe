@@ -23,6 +23,7 @@ import DriverLayout from '@/components/layout/DriverLayout'
 import AdminDashboard    from '@/pages/admin/AdminDashboard'
 import AdminUsers        from '@/pages/admin/AdminUsers'
 import AdminPermissions  from '@/pages/admin/AdminPermissions'
+import AdminConfig       from '@/pages/admin/AdminConfig'
 import AdminAuditLog     from '@/pages/admin/AdminAuditLog'
 import AdminDevices      from '@/pages/admin/AdminDevices'
 import { useAuthStore, getHomeByRole } from '@/store/authStore'
@@ -270,7 +271,7 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <AppLayout pageTitle="Cấu hình hệ thống">
-                <AdminDashboard />
+                <AdminConfig />
               </AppLayout>
             </ProtectedRoute>
           }
