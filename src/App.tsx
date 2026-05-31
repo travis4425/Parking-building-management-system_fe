@@ -16,6 +16,7 @@ import DriverHome from '@/pages/driver/DriverHome'
 import DriverPayment from '@/pages/driver/DriverPayment'
 import DriverBooking from '@/pages/driver/DriverBooking'
 import DriverHistory from '@/pages/driver/DriverHistory'
+import DriverPricing from '@/pages/driver/DriverPricing'
 import DriverLayout from '@/components/layout/DriverLayout'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
 import { useAuthStore, getHomeByRole } from '@/store/authStore'
@@ -178,8 +179,8 @@ export default function App() {
           path="/driver/pricing"
           element={
             <ProtectedRoute allowedRoles={['driver']}>
-              <DriverLayout pageTitle="Bảng giá">
-                <DriverHome />
+              <DriverLayout pageTitle="Bảng giá & Thông tin bãi">
+                <DriverPricing />
               </DriverLayout>
             </ProtectedRoute>
           }
