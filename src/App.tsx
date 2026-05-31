@@ -17,6 +17,7 @@ import DriverPayment from '@/pages/driver/DriverPayment'
 import DriverBooking from '@/pages/driver/DriverBooking'
 import DriverHistory from '@/pages/driver/DriverHistory'
 import DriverPricing from '@/pages/driver/DriverPricing'
+import DriverFeedback from '@/pages/driver/DriverFeedback'
 import DriverLayout from '@/components/layout/DriverLayout'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
 import { useAuthStore, getHomeByRole } from '@/store/authStore'
@@ -201,6 +202,17 @@ export default function App() {
             <ProtectedRoute allowedRoles={['driver']}>
               <DriverLayout pageTitle="Lịch sử gửi xe">
                 <DriverHistory />
+              </DriverLayout>
+            </ProtectedRoute>
+          }
+        />
+        {/* Phản hồi & khiếu nại (optional) */}
+        <Route
+          path="/driver/feedback"
+          element={
+            <ProtectedRoute allowedRoles={['driver']}>
+              <DriverLayout pageTitle="Phản hồi & Khiếu nại">
+                <DriverFeedback />
               </DriverLayout>
             </ProtectedRoute>
           }
