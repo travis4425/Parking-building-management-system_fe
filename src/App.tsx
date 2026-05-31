@@ -14,6 +14,7 @@ import StaffPayment from '@/pages/staff/StaffPayment'
 import StaffExceptions from '@/pages/staff/StaffExceptions'
 import DriverHome from '@/pages/driver/DriverHome'
 import DriverPayment from '@/pages/driver/DriverPayment'
+import DriverBooking from '@/pages/driver/DriverBooking'
 import DriverLayout from '@/components/layout/DriverLayout'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
 import { useAuthStore, getHomeByRole } from '@/store/authStore'
@@ -186,8 +187,8 @@ export default function App() {
           path="/driver/booking"
           element={
             <ProtectedRoute allowedRoles={['driver']}>
-              <DriverLayout pageTitle="Đặt chỗ">
-                <DriverHome />
+              <DriverLayout pageTitle="Đặt chỗ trước">
+                <DriverBooking />
               </DriverLayout>
             </ProtectedRoute>
           }
