@@ -3,10 +3,11 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
 import LoginPage from '@/pages/auth/LoginPage'
-import ManagerDashboard from '@/pages/manager/ManagerDashboard'
-import SlotManagement from '@/pages/manager/SlotManagement'
+import ManagerDashboard   from '@/pages/manager/ManagerDashboard'
+import SlotManagement    from '@/pages/manager/SlotManagement'
+import VehicleManagement from '@/pages/manager/VehicleManagement'
 import PricingManagement from '@/pages/manager/PricingManagement'
-import Reports from '@/pages/manager/Reports'
+import Reports           from '@/pages/manager/Reports'
 import StaffDashboard from '@/pages/staff/StaffDashboard'
 import CheckIn from '@/pages/staff/CheckIn'
 import CheckOut from '@/pages/staff/CheckOut'
@@ -69,8 +70,8 @@ export default function App() {
           path="/manager/vehicles"
           element={
             <ProtectedRoute allowedRoles={['manager']}>
-              <AppLayout pageTitle="Phương tiện">
-                <ManagerDashboard />
+              <AppLayout pageTitle="Quản lý loại phương tiện">
+                <VehicleManagement />
               </AppLayout>
             </ProtectedRoute>
           }
