@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { QRCodeCanvas } from 'qrcode.react'
 import {
   Sparkles, Loader2, CheckCircle, AlertCircle,
-  Printer, X, ClipboardList, Car, Clock,
+  Printer, X, ClipboardList, Car, Clock, Bot,
 } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import LPRCamera from '@/components/staff/LPRCamera'
@@ -373,22 +373,26 @@ export default function CheckIn() {
 
           {/* ── Gợi ý AI ── */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            {/* Header */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <Bot className="w-4 h-4 text-amber-600" />
                 </div>
-                <h2 className="font-semibold text-gray-900">Gợi ý slot — AI</h2>
-                <span className="text-xs font-medium bg-amber-100 text-amber-700
-                                 border border-amber-200 px-2 py-0.5 rounded-full">
-                  Gemini AI
+                <h2 className="font-semibold text-gray-900">Gợi ý slot</h2>
+                <span className="inline-flex items-center gap-1 text-xs font-bold
+                                 bg-gradient-to-r from-amber-400 to-orange-400 text-white
+                                 px-2 py-0.5 rounded-full shadow-sm">
+                  <Sparkles className="w-3 h-3" /> AI
                 </span>
+                <span className="text-xs text-gray-400">Gemini 1.5 Flash</span>
               </div>
               <button
                 onClick={handleAiSuggest}
                 disabled={aiLoading}
                 className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg
-                           bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white transition-colors"
+                           bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white
+                           transition-colors shadow-sm"
               >
                 {aiLoading
                   ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang phân tích...</>
@@ -397,43 +401,96 @@ export default function CheckIn() {
               </button>
             </div>
 
-            {/* Trạng thái gợi ý AI */}
+            {/* Trạng thái idle */}
             {!aiSuggestion && !aiLoading && !aiError && (
-              <p className="text-sm text-gray-400 text-center py-3">
-                Nhấn "Gợi ý" để AI chọn slot tối ưu cho loại xe và cổng vào đã chọn
-              </p>
+              <div className="flex flex-col items-center gap-2 py-5 text-gray-400">
+                <Bot className="w-8 h-8 opacity-30" />
+                <p className="text-sm text-center">
+                  Nhấn <strong className="text-amber-600">Gợi ý</strong> để AI chọn slot tối ưu
+                  <br />
+                  <span className="text-xs">dựa trên loại xe và cổng vào</span>
+                </p>
+              </div>
             )}
 
+            {/* Loading animation */}
             {aiLoading && (
-              <div className="flex items-center gap-3 py-3">
-                <Loader2 className="w-5 h-5 text-amber-500 animate-spin flex-shrink-0" />
-                <p className="text-sm text-gray-600">Đang phân tích dữ liệu bãi xe...</p>
+              <div className="flex flex-col items-center gap-3 py-5">
+                <div className="relative">
+                  <Bot className="w-8 h-8 text-amber-400" />
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full animate-ping" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-gray-700">Đang phân tích bãi xe...</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Gemini đang xử lý {availableCount} slot trống</p>
+                </div>
+                {/* Skeleton bar */}
+                <div className="w-full space-y-2 mt-1">
+                  {[0.75, 0.5, 0.9].map((w, i) => (
+                    <div key={i} className="h-2.5 bg-amber-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-amber-300 rounded-full animate-pulse"
+                        style={{ width: `${w * 100}%`, animationDelay: `${i * 150}ms` }}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
+            {/* Error state */}
             {aiError && !aiLoading && (
-              <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50
+              <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50
                               border border-red-200 rounded-xl px-3 py-2.5">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                Không thể kết nối AI — đã dùng slot mặc định
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">Không thể kết nối AI</p>
+                  <p className="text-xs text-red-400 mt-0.5">Đã dùng slot mặc định thay thế</p>
+                </div>
               </div>
             )}
 
+            {/* Success result */}
             {aiSuggestion && !aiLoading && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                  <div>
-                    <span className="text-sm font-semibold text-gray-900">
-                      Slot gợi ý:{' '}
-                      <span className="text-blue-600 font-mono">{aiSuggestion.slotCode}</span>
-                    </span>
-                    <span className="ml-2 text-xs text-gray-500">
-                      Tầng {aiSuggestion.floor} — Khu {aiSuggestion.zone}
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200
+                              rounded-xl p-4 space-y-3">
+                {/* Slot info */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <span className="text-sm font-semibold text-gray-900">Slot được chọn:</span>
+                    <span className="text-base font-bold text-blue-600 font-mono">
+                      {aiSuggestion.slotCode}
                     </span>
                   </div>
+                  <span className="text-xs text-gray-500 bg-white border border-gray-200
+                                   px-2 py-0.5 rounded-full">
+                    Tầng {aiSuggestion.floor} · Khu {aiSuggestion.zone}
+                  </span>
                 </div>
-                <p className="text-xs text-gray-600 leading-relaxed">{aiSuggestion.reason}</p>
+
+                {/* Lý do */}
+                <p className="text-xs text-gray-600 leading-relaxed bg-white/60
+                              rounded-lg px-3 py-2 border border-amber-100">
+                  💡 {aiSuggestion.reason}
+                </p>
+
+                {/* Confidence bar */}
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center text-xs text-gray-500">
+                    <span>Độ tin cậy AI</span>
+                    <span className="font-semibold text-amber-700">
+                      {Math.round(aiSuggestion.confidence * 100)}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-amber-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full
+                                 transition-all duration-700 ease-out"
+                      style={{ width: `${aiSuggestion.confidence * 100}%` }}
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </div>
