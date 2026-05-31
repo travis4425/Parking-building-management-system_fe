@@ -19,7 +19,11 @@ import DriverHistory from '@/pages/driver/DriverHistory'
 import DriverPricing from '@/pages/driver/DriverPricing'
 import DriverFeedback from '@/pages/driver/DriverFeedback'
 import DriverLayout from '@/components/layout/DriverLayout'
-import AdminDashboard from '@/pages/admin/AdminDashboard'
+import AdminDashboard    from '@/pages/admin/AdminDashboard'
+import AdminUsers        from '@/pages/admin/AdminUsers'
+import AdminPermissions  from '@/pages/admin/AdminPermissions'
+import AdminAuditLog     from '@/pages/admin/AdminAuditLog'
+import AdminDevices      from '@/pages/admin/AdminDevices'
 import { useAuthStore, getHomeByRole } from '@/store/authStore'
 
 function RootRedirect() {
@@ -244,8 +248,8 @@ export default function App() {
           path="/admin/users"
           element={
             <ProtectedRoute allowedRoles={['admin']}>
-              <AppLayout pageTitle="Tài khoản">
-                <AdminDashboard />
+              <AppLayout pageTitle="Quản lý tài khoản">
+                <AdminUsers />
               </AppLayout>
             </ProtectedRoute>
           }
@@ -255,7 +259,7 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <AppLayout pageTitle="Phân quyền">
-                <AdminDashboard />
+                <AdminPermissions />
               </AppLayout>
             </ProtectedRoute>
           }
@@ -275,7 +279,7 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <AppLayout pageTitle="Audit Log">
-                <AdminDashboard />
+                <AdminAuditLog />
               </AppLayout>
             </ProtectedRoute>
           }
@@ -285,7 +289,7 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <AppLayout pageTitle="Thiết bị IoT">
-                <AdminDashboard />
+                <AdminDevices />
               </AppLayout>
             </ProtectedRoute>
           }
