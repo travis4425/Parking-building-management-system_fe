@@ -9,6 +9,8 @@ import {
 import PageWrapper from '@/components/layout/PageWrapper'
 import QRScanner from '@/components/staff/QRScanner'
 import Receipt from '@/components/staff/Receipt'
+import { BarrierGate } from '@/components/iot/BarrierStatus'
+import { useIotStore }  from '@/store/iotStore'
 import { useSessionStore } from '@/store/sessionStore'
 import { useSlotStore } from '@/store/slotStore'
 import { useAuthStore } from '@/store/authStore'
@@ -21,37 +23,6 @@ const VEHICLE_LABELS: Record<string, string> = {
 
 function fmt(n: number) {
   return new Intl.NumberFormat('vi-VN').format(n) + ' ₫'
-}
-
-// ── Barrier animation ────────────────────────────────────────────────────────
-function BarrierGate({ open }: { open: boolean }) {
-  return (
-    <div className="flex flex-col items-center gap-1 py-4 select-none">
-      <div className="relative w-44 h-28">
-        {/* Trụ barrier */}
-        <div className="absolute bottom-0 left-6 w-3 h-20 bg-gray-600 rounded-t-sm" />
-        {/* Cần barrier — xoay lên khi open */}
-        <div
-          className={`absolute bottom-20 left-6 h-4 w-36 rounded-r-full origin-left
-                      transition-transform duration-1000 ease-in-out overflow-hidden
-                      flex items-center
-                      ${open ? '-rotate-90' : 'rotate-0'}`}
-          style={{ background: open ? '#16a34a' : '#dc2626', transformOrigin: '0 50%' }}
-        >
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-full w-5 opacity-40 flex-shrink-0"
-              style={{ background: 'repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(0,0,0,.3) 4px,rgba(0,0,0,.3) 8px)' }}
-            />
-          ))}
-        </div>
-        {/* Đường kẻ mặt đất */}
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 rounded" />
-      </div>
-      <p className={`text-xs font-semibold ${open ? 'text-emerald-600' : 'text-red-500'}`}>
-        {open ? '✓ Barrier đã mở — xe có thể ra' : 'Barrier đang đóng'}
-      </p>
-    </div>
-  )
 }
 
 // ── Danh sách phương thức thanh toán ────────────────────────────────────────
@@ -112,6 +83,11 @@ export default function CheckOut() {
     updateSlot(session.slotId, 'available')
     setConfirmed(true)
     setBarrierOpen(true)
+
+    // Mở barrier cổng B khi xe ra, tự đóng sau 4 giây (simulate IoT)
+    useIotStore.getState().openBarrier('B')
+    setTimeout(() => useIotStore.getState().closeBarrier('B'), 4000)
+
     setTimeout(() => setShowReceipt(true), 1200)
   }
 
@@ -213,7 +189,18 @@ export default function CheckOut() {
 
           {/* Barrier */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-            <BarrierGate open={barrierOpen} />
+            <div className="py-2">
+              <BarrierGate
+                open={barrierOpen}
+                label="Cổng B — Ra"
+                lastOpened={barrierOpen ? new Date().toISOString() : null}
+              />
+              {barrierOpen && (
+                <p className="text-xs text-emerald-600 text-center font-medium mt-2">
+                  ✓ Barrier đã mở — xe có thể ra
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
