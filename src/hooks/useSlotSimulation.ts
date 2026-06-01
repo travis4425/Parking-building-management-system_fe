@@ -24,7 +24,9 @@ export function useSlotSimulation(intervalMs = 5000) {
     const active  = current.filter((s) => s.status !== 'maintenance' && s.status !== 'locked')
     if (active.length === 0) return
 
-    const count  = Math.random() < 0.4 ? 2 : 1
+    // 1 slot (40%), 2 slots (40%), 3 slots (20%) — simulate nhiều cảm biến cùng lúc
+    const rnd    = Math.random()
+    const count  = rnd < 0.2 ? 3 : rnd < 0.6 ? 2 : 1
     const chosen = [...active].sort(() => Math.random() - 0.5).slice(0, count)
 
     const updates = chosen.map((slot) => ({
