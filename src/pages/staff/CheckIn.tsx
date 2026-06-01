@@ -11,6 +11,7 @@ import { useSlotStore } from '@/store/slotStore'
 import { useSessionStore } from '@/store/sessionStore'
 import { useAuthStore } from '@/store/authStore'
 import { suggestSlot, type SlotSuggestion } from '@/ai/slotSuggestion'
+import { useIotStore } from '@/store/iotStore'
 import { ENTRY_GATES } from '@/api/mockLPR'
 import type { VehicleType, ParkingSession } from '@/utils/types'
 
@@ -253,6 +254,11 @@ export default function CheckIn() {
 
     addSession(newSession)
     updateSlot(targetSlot.id, 'occupied')
+
+    // Mở barrier cổng A khi xe vào, tự đóng sau 4 giây (simulate IoT)
+    useIotStore.getState().openBarrier('A')
+    setTimeout(() => useIotStore.getState().closeBarrier('A'), 4000)
+
     setSession(newSession)
     setModalOpen(true)
   }
