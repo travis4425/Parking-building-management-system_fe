@@ -8,6 +8,7 @@ import SlotManagement    from '@/pages/manager/SlotManagement'
 import VehicleManagement from '@/pages/manager/VehicleManagement'
 import PricingManagement from '@/pages/manager/PricingManagement'
 import Reports           from '@/pages/manager/Reports'
+import ManagerExceptions from '@/pages/manager/ManagerExceptions'
 import StaffDashboard from '@/pages/staff/StaffDashboard'
 import CheckIn from '@/pages/staff/CheckIn'
 import CheckOut from '@/pages/staff/CheckOut'
@@ -101,8 +102,8 @@ export default function App() {
           path="/manager/exceptions"
           element={
             <ProtectedRoute allowedRoles={['manager']}>
-              <AppLayout pageTitle="Ngoại lệ">
-                <ManagerDashboard />
+              <AppLayout pageTitle="Theo dõi ngoại lệ">
+                <ManagerExceptions />
               </AppLayout>
             </ProtectedRoute>
           }
