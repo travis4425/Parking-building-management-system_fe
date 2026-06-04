@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore'
 import { calculateFee, formatDuration, LOST_TICKET_SURCHARGE } from '@/utils/feeCalculator'
 import { MOCK_CONTACT_MAP } from '@/api/mockSessions'
 import type { ParkingSession, ParkingAlert } from '@/utils/types'
+import { toast } from 'sonner'
 import {
   QrCode, Car, Clock, Cpu, Search, CheckCircle,
   AlertTriangle, Phone, Wrench, Edit3, FileText,
@@ -132,6 +133,7 @@ export default function StaffExceptions() {
       `Biển số: ${lqSession.vehiclePlate}, Slot: ${lqSession.slotCode}, Tổng phí: ${formatVND(fee.total)} (incl. phụ thu ${formatVND(LOST_TICKET_SURCHARGE)})`,
     )
     setLQDone(true)
+    toast.success('Đã xử lý và ghi log ngoại lệ')
   }
 
   // --- Tab 2 handlers ---
@@ -152,6 +154,7 @@ export default function StaffExceptions() {
       `Slot: ${wpSession.slotCode} | ${oldPlate} → ${newPlate}`,
     )
     setWPDone(true)
+    toast.success('Đã cập nhật biển số thành công')
   }
 
   // --- Tab 4 handler ---
@@ -162,6 +165,7 @@ export default function StaffExceptions() {
     setSNDone((prev) => new Set([...prev, alert.id]))
     const reason = snReason[alert.id]?.trim() || '(Không ghi lý do)'
     addAudit('Chuyển slot sang Bảo trì', `Slot ${alert.slotCode}: ${reason}`)
+    toast.success('Đã xử lý và ghi log ngoại lệ')
   }
 
   // ==================== RENDER ====================
