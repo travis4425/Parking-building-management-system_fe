@@ -199,7 +199,9 @@ export default function CheckIn() {
 
   // Reset suggestion khi đổi loại xe hoặc cổng vào
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAiSuggestion(null)
+     
     setAiError(false)
   }, [vehicleType, entryGate])
 
