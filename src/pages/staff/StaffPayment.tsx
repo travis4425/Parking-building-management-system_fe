@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx'
 import { QRCodeCanvas } from 'qrcode.react'
 import {
   CreditCard, Banknote, QrCode, Search, CheckCircle,
-  Car, Clock, Receipt as ReceiptIcon, Download, Filter,
+  Car, Clock, Receipt as ReceiptIcon, Download,
   ChevronRight, AlertCircle, X, Wallet,
 } from 'lucide-react'
 import Receipt from '@/components/staff/Receipt'
@@ -48,7 +48,7 @@ const COLOR_MAP: Record<string, string> = {
 }
 
 export default function StaffPayment() {
-  const { sessions, findByPlate, findByQR, findById, markAsPaid } = useSessionStore()
+  const { findByPlate, findByQR, findById, markAsPaid } = useSessionStore()
   const { payments, addPayment, getShiftTotal }                   = usePaymentStore()
   const { user } = useAuthStore()
 
