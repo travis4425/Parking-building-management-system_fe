@@ -1,5 +1,6 @@
 // Trang quản lý tài khoản: bảng người dùng, filter, tìm kiếm, modal thêm mới, khóa/mở khóa
 import { useState, useMemo } from 'react'
+import { toast } from 'sonner'
 import PageWrapper from '@/components/layout/PageWrapper'
 import {
   Search, Plus, Lock, Unlock, Eye, EyeOff, X,
@@ -85,9 +86,14 @@ export default function AdminUsers() {
   }, [users])
 
   function toggleLock(id: string) {
+    const target = users.find(u => u.id === id)
+    if (!target) return
+    const willLock = target.status === 'active'
     setUsers(prev => prev.map(u =>
-      u.id === id ? { ...u, status: u.status === 'active' ? 'locked' : 'active' } : u
+      u.id === id ? { ...u, status: willLock ? 'locked' : 'active' } : u
     ))
+    if (willLock) toast.warning(`Đã khóa tài khoản ${target.username}`)
+    else          toast.success(`Đã mở khóa tài khoản ${target.username}`)
   }
 
   function closeModal() {
@@ -122,6 +128,7 @@ export default function AdminUsers() {
     }
     setUsers(prev => [newUser, ...prev])
     closeModal()
+    toast.success('Tạo tài khoản thành công')
   }
 
   return (
