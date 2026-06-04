@@ -1,5 +1,6 @@
 // Trang báo cáo thống kê: doanh thu, lưu lượng xe, tỷ lệ lấp đầy theo tầng + xuất Excel
 import { useState, useMemo } from 'react'
+import { toast } from 'sonner'
 import {
   BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -93,6 +94,7 @@ export default function Reports() {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(occupancyData), 'Lấp đầy tầng')
 
     XLSX.writeFile(wb, `BaoCao_BaiXe_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    toast.success('Đang tải file xuống...')
   }
 
   return (
