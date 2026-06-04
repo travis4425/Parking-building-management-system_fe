@@ -34,8 +34,10 @@ function shortVND(n: number) {
   return String(n)
 }
 
+type TooltipProps = { active?: boolean; payload?: { value: number }[]; label?: string }
+
 // Tooltip tùy chỉnh cho biểu đồ doanh thu
-function RevenueTooltip({ active, payload, label }: any) {
+function RevenueTooltip({ active, payload, label }: TooltipProps) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm">
@@ -49,7 +51,7 @@ function RevenueTooltip({ active, payload, label }: any) {
 }
 
 // Tooltip cho biểu đồ lưu lượng theo giờ
-function TrafficTooltip({ active, payload, label }: any) {
+function TrafficTooltip({ active, payload, label }: TooltipProps) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm">
