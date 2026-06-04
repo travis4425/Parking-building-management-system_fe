@@ -91,10 +91,10 @@ export default function AdminAuditLog() {
   const [filterAction, setFilterAction] = useState('all')
   const [filterPeriod, setFilterPeriod] = useState<'1d' | '7d' | '30d'>('7d')
   const [page, setPage]             = useState(1)
+  const [now]                       = useState(() => Date.now())
 
   const filtered = useMemo(() => {
     const q   = search.toLowerCase()
-    const now = Date.now()
     const periodMs = filterPeriod === '1d' ? 86_400_000 : filterPeriod === '7d' ? 7 * 86_400_000 : 30 * 86_400_000
 
     return MOCK_LOGS
@@ -105,7 +105,7 @@ export default function AdminAuditLog() {
         return matchQ && matchAction && matchPeriod
       })
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-  }, [search, filterAction, filterPeriod])
+  }, [search, filterAction, filterPeriod, now])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paged      = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
