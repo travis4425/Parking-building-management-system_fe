@@ -81,6 +81,7 @@ export default function DriverPayment() {
   }, [step, qrKey])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (qrSecs === 0 && step === 'paying_qr') setQrExp(true)
   }, [qrSecs, step])
 
@@ -96,6 +97,7 @@ export default function DriverPayment() {
   }, [step])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (exitSecs === 0 && step === 'confirmed') setExitExp(true)
   }, [exitSecs, step])
 
