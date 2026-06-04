@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
+import { toast } from 'sonner'
 import {
   AlertTriangle, QrCode, ScanLine, Clock, Cpu,
   FileDown, Eye, ChevronLeft, ChevronRight,
@@ -201,6 +202,7 @@ export default function ManagerExceptions() {
       prev.map((e) => (e.id === noteModal.id ? { ...e, notes: noteDraft } : e)),
     )
     setNoteModal(null)
+    toast.success('Đã lưu ghi chú')
   }
 
   function toggleMonitor(sessionId: string) {
@@ -232,6 +234,7 @@ export default function ManagerExceptions() {
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Ngoại lệ')
     XLSX.writeFile(wb, `ngoai-le-${new Date().toISOString().slice(0, 10)}.xlsx`)
+    toast.success('Đang tải file xuống...')
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
