@@ -120,6 +120,7 @@ export default function DriverBooking() {
   // Deselect slot if it becomes unavailable (e.g., someone else books it)
   useEffect(() => {
     if (selectedSlotId && !availableSlots.find((s) => s.id === selectedSlotId)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedSlotId(null)
     }
   }, [availableSlots, selectedSlotId])
