@@ -1,5 +1,6 @@
 // Kiosk thanh toán cho tài xế — quét QR vé / nhập biển số → tính phí → TT → sinh mã ra cổng
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import { QRCodeCanvas } from 'qrcode.react'
 import {
   ScanLine, Search, Car, CreditCard, Banknote, QrCode,
@@ -153,6 +154,7 @@ export default function DriverPayment() {
     setExitSecs(EXIT_SECS)
     setExitExp(false)
     setStep('confirmed')
+    toast.success('Thanh toán thành công — Vui lòng xuất trình mã ra cổng')
   }
 
   function handleRetryQR() {
