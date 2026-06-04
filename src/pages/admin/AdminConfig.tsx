@@ -1,5 +1,6 @@
 // Trang cấu hình hệ thống — 4 nhóm: tòa nhà, vận hành, IoT, AI — lưu vào configStore + localStorage
 import { useState } from 'react'
+import { toast } from 'sonner'
 import {
   Building2, Settings, Cpu, Brain,
   Save, RefreshCw, Wifi, WifiOff,
@@ -180,6 +181,7 @@ export default function AdminConfig() {
   const [restartTarget, setRestartTarget] = useState<number | null>(null)
   const [restartingId, setRestartingId]   = useState<number | null>(null)
   const [offlineFallback, setOfflineFallback] = useState(config.offlineFallbackMode)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
 
   function handlePing(id: number) {
     setPingStates(p => ({ ...p, [id]: 'pinging' }))
@@ -702,34 +704,58 @@ export default function AdminConfig() {
             )
           })}
 
-          {/* Reset về default */}
+          {/* Reset về default — dùng state dialog thay cho confirm() */}
           <div className="p-3 border-t border-gray-100">
-            <button onClick={() => {
-              if (confirm('Đặt lại tất cả cấu hình về mặc định?')) {
-                useConfigStore.getState().resetToDefaults()
-                setBuilding({
-                  parkingName: CONFIG_DEFAULTS.parkingName, address: CONFIG_DEFAULTS.address,
-                  phone: CONFIG_DEFAULTS.phone, openTime: CONFIG_DEFAULTS.openTime,
-                  closeTime: CONFIG_DEFAULTS.closeTime, totalFloors: CONFIG_DEFAULTS.totalFloors,
-                })
-                setOps({
-                  slotPendingMinutes: CONFIG_DEFAULTS.slotPendingMinutes,
-                  exitCodeMinutes: CONFIG_DEFAULTS.exitCodeMinutes,
-                  overtimeThresholdHours: CONFIG_DEFAULTS.overtimeThresholdHours,
-                  lostQrSurcharge: CONFIG_DEFAULTS.lostQrSurcharge,
-                  overtimeSurchargePercent: CONFIG_DEFAULTS.overtimeSurchargePercent,
-                  allowBooking: CONFIG_DEFAULTS.allowBooking, enableAI: CONFIG_DEFAULTS.enableAI,
-                })
-                setAiModel(CONFIG_DEFAULTS.geminiModel)
-                setLprThreshold(CONFIG_DEFAULTS.lprConfidenceThreshold)
-                setPeakPred(CONFIG_DEFAULTS.enablePeakPrediction)
-                setOfflineFallback(CONFIG_DEFAULTS.offlineFallbackMode)
-              }
-            }}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium
-                         text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors">
-              <RotateCcw size={12} /> Đặt lại mặc định
-            </button>
+            {!showResetConfirm ? (
+              <button
+                onClick={() => setShowResetConfirm(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium
+                           text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+              >
+                <RotateCcw size={12} /> Đặt lại mặc định
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-red-600 font-medium text-center">Đặt lại tất cả về mặc định?</p>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => {
+                      useConfigStore.getState().resetToDefaults()
+                      setBuilding({
+                        parkingName: CONFIG_DEFAULTS.parkingName, address: CONFIG_DEFAULTS.address,
+                        phone: CONFIG_DEFAULTS.phone, openTime: CONFIG_DEFAULTS.openTime,
+                        closeTime: CONFIG_DEFAULTS.closeTime, totalFloors: CONFIG_DEFAULTS.totalFloors,
+                      })
+                      setOps({
+                        slotPendingMinutes: CONFIG_DEFAULTS.slotPendingMinutes,
+                        exitCodeMinutes: CONFIG_DEFAULTS.exitCodeMinutes,
+                        overtimeThresholdHours: CONFIG_DEFAULTS.overtimeThresholdHours,
+                        lostQrSurcharge: CONFIG_DEFAULTS.lostQrSurcharge,
+                        overtimeSurchargePercent: CONFIG_DEFAULTS.overtimeSurchargePercent,
+                        allowBooking: CONFIG_DEFAULTS.allowBooking, enableAI: CONFIG_DEFAULTS.enableAI,
+                      })
+                      setAiModel(CONFIG_DEFAULTS.geminiModel)
+                      setLprThreshold(CONFIG_DEFAULTS.lprConfidenceThreshold)
+                      setPeakPred(CONFIG_DEFAULTS.enablePeakPrediction)
+                      setOfflineFallback(CONFIG_DEFAULTS.offlineFallbackMode)
+                      setShowResetConfirm(false)
+                      toast.success('Đã đặt lại cấu hình về mặc định')
+                    }}
+                    className="flex-1 text-xs px-2 py-1.5 bg-red-500 hover:bg-red-600
+                               text-white rounded-lg transition-colors font-medium"
+                  >
+                    Xác nhận
+                  </button>
+                  <button
+                    onClick={() => setShowResetConfirm(false)}
+                    className="flex-1 text-xs px-2 py-1.5 border border-gray-200
+                               hover:bg-gray-50 rounded-lg transition-colors"
+                  >
+                    Hủy
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
