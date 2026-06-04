@@ -10,8 +10,10 @@ import LPRCamera from '@/components/staff/LPRCamera'
 import { useSlotStore } from '@/store/slotStore'
 import { useSessionStore } from '@/store/sessionStore'
 import { useAuthStore } from '@/store/authStore'
+import { toast } from 'sonner'
 import { suggestSlot, type SlotSuggestion } from '@/ai/slotSuggestion'
 import { useIotStore } from '@/store/iotStore'
+import { generateToken } from '@/utils/qrToken'
 import { ENTRY_GATES } from '@/api/mockLPR'
 import type { VehicleType, ParkingSession } from '@/utils/types'
 
@@ -113,7 +115,7 @@ function SessionConfirmModal({
           {/* QR Code */}
           <div className="flex justify-center" ref={qrContainerRef}>
             <div className="p-3 border-2 border-gray-200 rounded-xl bg-white">
-              <QRCodeCanvas value={session.qrCode} size={160} level="M" />
+              <QRCodeCanvas value={generateToken(session.id, session.checkInTime)} size={160} level="M" />
             </div>
           </div>
 
@@ -208,9 +210,10 @@ export default function CheckIn() {
     try {
       const result = await suggestSlot(slots, vehicleType, entryGate)
       setAiSuggestion(result)
-      if (!result) setAiError(true)
+      if (!result) { setAiError(true); toast.warning('Không thể gợi ý AI — Đang dùng gợi ý thủ công') }
     } catch {
       setAiError(true)
+      toast.warning('Không thể gợi ý AI — Đang dùng gợi ý thủ công')
     } finally {
       setAiLoading(false)
     }
@@ -259,6 +262,7 @@ export default function CheckIn() {
     useIotStore.getState().openBarrier('A')
     setTimeout(() => useIotStore.getState().closeBarrier('A'), 4000)
 
+    toast.success(`Tạo lượt gửi xe thành công! Mã: #${newSession.id.slice(0, 8).toUpperCase()}`)
     setSession(newSession)
     setModalOpen(true)
   }

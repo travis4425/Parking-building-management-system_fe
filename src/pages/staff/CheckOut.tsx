@@ -6,11 +6,13 @@ import {
   Clock, CreditCard, Banknote, QrCode, X,
   ChevronRight, TriangleAlert,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import PageWrapper from '@/components/layout/PageWrapper'
 import QRScanner from '@/components/staff/QRScanner'
 import Receipt from '@/components/staff/Receipt'
 import { BarrierGate } from '@/components/iot/BarrierStatus'
 import { useIotStore }  from '@/store/iotStore'
+import { decodeToken }  from '@/utils/qrToken'
 import { useSessionStore } from '@/store/sessionStore'
 import { useSlotStore } from '@/store/slotStore'
 import { useAuthStore } from '@/store/authStore'
@@ -34,6 +36,7 @@ const PAY_OPTIONS: { val: PayMethod; label: string; Icon: ComponentType<{ classN
 
 // ── Main page ────────────────────────────────────────────────────────────────
 export default function CheckOut() {
+  const sessions    = useSessionStore((s) => s.sessions)
   const findByQR    = useSessionStore((s) => s.findByQR)
   const findByPlate = useSessionStore((s) => s.findByPlate)
   const complete    = useSessionStore((s) => s.completeSession)
@@ -57,6 +60,7 @@ export default function CheckOut() {
   function applySession(found: ParkingSession | undefined, lost = false) {
     if (!found) {
       setLookupErr('Không tìm thấy phiên đỗ xe đang hoạt động.')
+      toast.error('Không tìm thấy lượt gửi xe với thông tin này')
       return
     }
     const now = new Date()
@@ -69,7 +73,23 @@ export default function CheckOut() {
 
   function handleQRScan(text: string) {
     setScanActive(false)
-    applySession(findByQR(text))
+    // Thử decode PKG token trước; nếu hợp lệ dùng sessionId để tra cứu
+    const decoded = decodeToken(text)
+    if (decoded.ok) {
+      const sess = findByQR(text) ?? sessions.find((s) => s.id === decoded.sessionId)
+      if (sess && sess.status !== 'active') {
+        toast.error('Mã QR không hợp lệ hoặc đã hết hiệu lực')
+        setScanActive(true)
+        return
+      }
+      applySession(sess)
+    } else if (decoded.reason === 'invalid_checksum') {
+      toast.error('Mã QR không hợp lệ hoặc đã hết hiệu lực')
+      setScanActive(true)
+    } else {
+      // Không phải PKG format — thử exact match (hỗ trợ QR cũ dạng UUID)
+      applySession(findByQR(text))
+    }
   }
 
   function handlePlateSearch() {
@@ -88,6 +108,7 @@ export default function CheckOut() {
     useIotStore.getState().openBarrier('B')
     setTimeout(() => useIotStore.getState().closeBarrier('B'), 4000)
 
+    toast.success('Thanh toán thành công — Barrier đã mở')
     setTimeout(() => setShowReceipt(true), 1200)
   }
 
