@@ -1,6 +1,7 @@
 // Driver Portal — Đặt chỗ trước: form 2 cột, slot grid, xác nhận + QR mã đặt chỗ
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { QRCodeCanvas } from 'qrcode.react'
 import {
   CalendarDays, Clock, Car, Bike, Truck, CheckCircle,
@@ -179,6 +180,7 @@ export default function DriverBooking() {
     })
 
     setBooking(rsv)
+    toast.success('Đặt chỗ thành công!')
   }
 
   // ── Confirmed view ────────────────────────────────────────────────────────
