@@ -1,6 +1,7 @@
 // Trang quản lý slot — bảng, filter, phân trang, modal sửa trạng thái, confirm dialog
 // Bãi xe cố định — không cho thêm/xóa slot
 import { useState, useMemo, useEffect } from 'react'
+import { toast } from 'sonner'
 import {
   Pencil, Search, ChevronLeft, ChevronRight,
   X, AlertTriangle, ParkingSquare, Filter,
@@ -277,12 +278,15 @@ export default function SlotManagement() {
     } else {
       updateSlotStatus(editSlot.id, newStatus)
       setEditSlot(null)
+      toast.success('Đã lưu thông tin slot')
     }
   }
 
   function confirmStatusChange(slotId: string, newStatus: SlotStatus) {
+    const slot = slots.find((s) => s.id === slotId)
     updateSlotStatus(slotId, newStatus)
     setConfirmData(null)
+    if (newStatus === 'maintenance' && slot) toast.warning(`Slot ${slot.code} đã chuyển sang Bảo trì`)
   }
 
   // ── Summary stats ──
