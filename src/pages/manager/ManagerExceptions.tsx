@@ -131,7 +131,7 @@ export default function ManagerExceptions() {
 
   // Local copy để đổi status / ghi chú không ảnh hưởng mock gốc
   const [exceptions,   setExceptions]   = useState<ManagerException[]>(MOCK_EXCEPTIONS)
-  const [tick,         setTick]         = useState(0)   // force re-render mỗi giây
+  const [nowMs,        setNowMs]        = useState(() => Date.now())
   const [filterType,   setFilterType]   = useState<ExceptionType | 'all'>('all')
   const [filterStatus, setFilterStatus] = useState<ExceptionStatus | 'all'>('all')
   const [dateFrom,     setDateFrom]     = useState('')
@@ -146,12 +146,12 @@ export default function ManagerExceptions() {
 
   // Realtime tick mỗi giây cho countdown quá hạn
   useEffect(() => {
-    const t = setInterval(() => setTick((n) => n + 1), 1000)
+    const t = setInterval(() => setNowMs(Date.now()), 1000)
     return () => clearInterval(t)
   }, [])
 
   // ── Tính toán overtime sessions từ sessionStore ──────────────────────────
-  const now = Date.now()
+  const now = nowMs
   const overtimeSessions = sessions.filter(
     (s) => s.status === 'active' &&
            (now - new Date(s.checkInTime).getTime()) > threshold * 3_600_000,
@@ -182,6 +182,7 @@ export default function ManagerExceptions() {
   const pageData   = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   // Xử lý khi filter thay đổi → reset trang
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setPage(1) }, [filterType, filterStatus, dateFrom, dateTo])
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -208,7 +209,7 @@ export default function ManagerExceptions() {
   function toggleMonitor(sessionId: string) {
     setMonitoredIds((prev) => {
       const next = new Set(prev)
-      next.has(sessionId) ? next.delete(sessionId) : next.add(sessionId)
+      if (next.has(sessionId)) { next.delete(sessionId) } else { next.add(sessionId) }
       return next
     })
   }
