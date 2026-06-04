@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { QRCodeCanvas } from 'qrcode.react'
 import {
   History, Bike, Car, Truck, CalendarDays, Clock,
-  CheckCircle2, Wallet, X, Printer, ChevronLeft,
+  CheckCircle2, X, Printer, ChevronLeft,
   ChevronRight, Search, Filter,
 } from 'lucide-react'
 import { useSessionStore } from '@/store/sessionStore'
@@ -68,6 +68,7 @@ export default function DriverHistory() {
   const qrRef = useRef<HTMLDivElement>(null)
 
   // Reset to page 1 when filter changes
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setPage(1) }, [period, dateFrom, dateTo])
 
   // ── Derived ───────────────────────────────────────────────────────────────
