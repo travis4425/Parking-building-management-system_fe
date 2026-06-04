@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import {
   Building2, Settings, Cpu, Brain,
-  Save, RefreshCw, Wifi, WifiOff,
+  Save, RefreshCw, RotateCcw, Wifi, WifiOff,
   Eye, EyeOff, Zap, AlertTriangle,
   CheckCircle, Power, X,
 } from 'lucide-react'
