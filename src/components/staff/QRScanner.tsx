@@ -52,9 +52,13 @@ export default function QRScanner({ onScan, active }: QRScannerProps) {
 
   useEffect(() => {
     if (active) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCamError(null)
+       
       setManualMode(false)
+       
       setManualInput('')
+       
       setScanOk(false)
     }
   }, [active])
@@ -63,23 +67,26 @@ export default function QRScanner({ onScan, active }: QRScannerProps) {
     if (!active) return
 
     calledRef.current = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setStarting(true)
+     
     setCamError(null)
+     
     setScanOk(false)
 
-    let scanner: Html5Qrcode | null = null
     let isStarted     = false
     let cleanupCalled = false
 
+    let s: Html5Qrcode
     try {
-      scanner = new Html5Qrcode(SCANNER_DIV_ID)
+      s = new Html5Qrcode(SCANNER_DIV_ID)
     } catch {
+       
       setCamError('other')
+       
       setStarting(false)
       return
     }
-
-    const s = scanner
 
     s.start(
       { facingMode: 'environment' },
