@@ -1,7 +1,7 @@
 // Driver Portal — Bảng giá đầy đủ, timeline cao điểm, thông tin bãi, tính phí nhanh
 import { useState, useMemo } from 'react'
 import {
-  Bike, Car, Truck, Clock, MapPin, Phone, Info,
+  Bike, Car, Truck, Clock, MapPin, Phone,
   Calculator, CheckCircle2, X, Zap, ShieldCheck,
   ChevronRight, Moon,
 } from 'lucide-react'
