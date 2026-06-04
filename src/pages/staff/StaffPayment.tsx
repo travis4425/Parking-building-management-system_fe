@@ -11,6 +11,7 @@ import Receipt from '@/components/staff/Receipt'
 import { useSessionStore } from '@/store/sessionStore'
 import { usePaymentStore } from '@/store/paymentStore'
 import { useAuthStore } from '@/store/authStore'
+import { toast } from 'sonner'
 import { calculateFee, formatDuration, LOST_TICKET_SURCHARGE } from '@/utils/feeCalculator'
 import type { FeeBreakdown } from '@/utils/feeCalculator'
 import type { ParkingSession, PayMethod } from '@/utils/types'
@@ -139,6 +140,7 @@ export default function StaffPayment() {
     // Lấy receiptNo vừa tạo từ payments store (phần tử đầu tiên sau addPayment)
     // Dùng timeout để state update xong
     setConfirmed(true)
+    toast.success('Thanh toán thành công — Barrier đã mở')
     setTimeout(() => {
       const latest = usePaymentStore.getState().payments[0]
       setLastReceiptNo(latest?.receiptNo ?? '')
