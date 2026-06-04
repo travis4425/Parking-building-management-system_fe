@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { toast } from 'sonner'
 import { Pencil, Plus, X, Clock, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { cn } from '@/utils/cn'
@@ -211,6 +212,7 @@ export default function PricingManagement() {
       return [...prev, { id: `pr-${Date.now()}`, ...data, updatedAt: new Date().toISOString() }]
     })
     setPricingModal({ open: false, rule: null })
+    toast.success('Đã cập nhật bảng giá')
   }
 
   function handleSavePeakHour(data: PeakHourForm) {
@@ -222,6 +224,7 @@ export default function PricingManagement() {
       return [...prev, { id: `ph-${Date.now()}`, ...data, days: ['T2', 'T3', 'T4', 'T5', 'T6'] }]
     })
     setPeakModal({ open: false, peak: null })
+    toast.success('Đã cập nhật bảng giá')
   }
 
   function deleteRule(id: string) {
