@@ -114,8 +114,10 @@ function EditStatusModal({ open, slot, onClose, onSave }: {
       const safe: EditableStatus = (EDITABLE_STATUSES as string[]).includes(slot.status)
         ? (slot.status as EditableStatus)
         : 'available'
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelected(safe)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slot?.id])
 
   if (!slot) return null
