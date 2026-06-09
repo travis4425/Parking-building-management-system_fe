@@ -182,6 +182,7 @@ export default function CheckIn() {
 
   // AI suggestion state
   const [aiLoading,    setAiLoading]    = useState(false)
+  const [aiCooldown,   setAiCooldown]   = useState(false)
   const [aiSuggestion, setAiSuggestion] = useState<SlotSuggestion | null>(null)
   const [aiError,      setAiError]      = useState(false)
 
@@ -206,6 +207,7 @@ export default function CheckIn() {
   }, [vehicleType, entryGate])
 
   async function handleAiSuggest() {
+    if (aiCooldown) return
     setAiLoading(true)
     setAiSuggestion(null)
     setAiError(false)
@@ -213,11 +215,17 @@ export default function CheckIn() {
       const result = await suggestSlot(slots, vehicleType, entryGate)
       setAiSuggestion(result)
       if (!result) { setAiError(true); toast.warning('Không thể gợi ý AI — Đang dùng gợi ý thủ công') }
-    } catch {
+    } catch (err) {
       setAiError(true)
-      toast.warning('Không thể gợi ý AI — Đang dùng gợi ý thủ công')
+      const isRateLimit = err instanceof Error && err.message === 'RATE_LIMIT'
+      toast.warning(isRateLimit
+        ? 'API đang bận (429) — thử lại sau 10 giây'
+        : 'Không thể gợi ý AI — Đang dùng gợi ý thủ công'
+      )
     } finally {
       setAiLoading(false)
+      setAiCooldown(true)
+      setTimeout(() => setAiCooldown(false), 8_000)
     }
   }
 
@@ -401,7 +409,7 @@ export default function CheckIn() {
               </div>
               <button
                 onClick={handleAiSuggest}
-                disabled={aiLoading}
+                disabled={aiLoading || aiCooldown}
                 className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg
                            bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white
                            transition-colors shadow-sm"
