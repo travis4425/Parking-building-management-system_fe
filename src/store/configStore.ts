@@ -25,7 +25,7 @@ export interface SystemConfig {
 
   // ── AI ───────────────────────────────────────────────────────────────────
   geminiApiKey:           string                               // Lưu để hiện trong UI (thực tế dùng env)
-  geminiModel:            'gemini-1.5-flash' | 'gemini-1.5-pro'
+  geminiModel:            'gemini-2.0-flash' | 'gemini-2.0-flash-lite'
   lprConfidenceThreshold: number   // 50–99 — dưới ngưỡng này flag "cần xác minh"
   enablePeakPrediction:   boolean
 }
@@ -49,7 +49,7 @@ export const CONFIG_DEFAULTS: SystemConfig = {
   offlineFallbackMode: false,
 
   geminiApiKey:           '',
-  geminiModel:            'gemini-1.5-flash',
+  geminiModel:            'gemini-2.0-flash',
   lprConfidenceThreshold: 90,
   enablePeakPrediction:   true,
 }
