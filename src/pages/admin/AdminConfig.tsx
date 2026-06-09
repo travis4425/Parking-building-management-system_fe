@@ -221,10 +221,12 @@ export default function AdminConfig() {
   const [lprThreshold, setLprThreshold] = useState(config.lprConfidenceThreshold)
   const [peakPred, setPeakPred]         = useState(config.enablePeakPrediction)
 
-  const [testing, setTesting]       = useState(false)
-  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [testing,     setTesting]     = useState(false)
+  const [testCooldown, setTestCooldown] = useState(false)
+  const [testResult,  setTestResult]  = useState<{ ok: boolean; msg: string } | null>(null)
 
   async function handleTestAI() {
+    if (testCooldown) return
     setTesting(true)
     setTestResult(null)
     try {
@@ -234,9 +236,17 @@ export default function AdminConfig() {
       const text = result.response.text().trim().slice(0, 120)
       setTestResult({ ok: true, msg: text })
     } catch (err) {
-      setTestResult({ ok: false, msg: err instanceof Error ? err.message : 'Lỗi không xác định' })
+      const isRateLimit = err instanceof Error && err.message === 'RATE_LIMIT'
+      setTestResult({
+        ok:  false,
+        msg: isRateLimit
+          ? 'API đang bận (429 Too Many Requests) — thử lại sau vài giây'
+          : (err instanceof Error ? err.message : 'Lỗi không xác định'),
+      })
     } finally {
       setTesting(false)
+      setTestCooldown(true)
+      setTimeout(() => setTestCooldown(false), 8_000)
     }
   }
 
@@ -585,8 +595,8 @@ export default function AdminConfig() {
             <select value={aiModel} onChange={e => setAiModel(e.target.value as SystemConfig['geminiModel'])}
               className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none
                          focus:ring-2 focus:ring-blue-300 bg-white">
-              <option value="gemini-1.5-flash">gemini-1.5-flash (nhanh, miễn phí)</option>
-              <option value="gemini-1.5-pro">gemini-1.5-pro (chính xác hơn)</option>
+              <option value="gemini-2.0-flash">gemini-2.0-flash (nhanh, miễn phí)</option>
+              <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite (nhẹ hơn, tiết kiệm quota)</option>
             </select>
           </div>
 
@@ -647,7 +657,7 @@ export default function AdminConfig() {
         {/* Test kết nối */}
         <SectionCard title="Kiểm tra kết nối AI">
           <div className="flex items-center gap-3 flex-wrap">
-            <button onClick={handleTestAI} disabled={testing}
+            <button onClick={handleTestAI} disabled={testing || testCooldown}
               className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
                          bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60
                          shadow-sm transition-colors">
