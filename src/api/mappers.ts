@@ -137,4 +137,72 @@ export function feToBeAlertType(type: AlertType): string {
   const map: Record<AlertType, string> = {
     sensor_error: 'SENSOR_ERROR',
     session_overtime: 'SESSION_OVERTIME',
-    wrong_zone: 'WRONG_ZO
+    wrong_zone: 'WRONG_ZONE',
+  }
+  return map[type]
+}
+
+export function mapAlert(beAlert: BeAlert): ParkingAlert {
+  return {
+    id: beAlert.id,
+    type: mapAlertType(beAlert.type),
+    slotCode: beAlert.slot?.code ?? '',
+    message: beAlert.message,
+    timestamp: beAlert.createdAt,
+    status: beAlert.status === 'RESOLVED' ? 'resolved' : 'pending',
+  }
+}
+
+interface BePricePolicy {
+  id: string
+  vehicleTypeId: string
+  vehicleType?: { id: string; name?: string; code?: string } | null
+  basePrice: number
+  pricePerHour: number
+  peakMultiplier?: number | null
+  overnightRate: number
+  isActive: boolean
+  effectiveFrom: string
+  effectiveTo?: string | null
+}
+
+// BE lưu giá theo (basePrice + pricePerHour × giờ), FE hiển thị flat normalRate/peakRate/overnightRate
+// → normalRate ≈ pricePerHour, peakRate ≈ pricePerHour × peakMultiplier
+export function mapPricePolicy(p: BePricePolicy): PricingRule {
+  const peakMultiplier = p.peakMultiplier ?? 1.5
+  return {
+    id: p.id,
+    vehicleType: mapVehicleTypeCode(p.vehicleType?.code),
+    normalRate: p.pricePerHour,
+    peakRate: Math.round(p.pricePerHour * peakMultiplier),
+    overnightRate: p.overnightRate,
+    isActive: p.isActive,
+    updatedAt: p.effectiveFrom,
+  }
+}
+
+// BE Exception chỉ có 3 type (LOST_TICKET/WRONG_PLATE/WRONG_ZONE), không có status/notes/timeline
+// → map sang ManagerException FE, các field không có trên BE dùng giá trị mặc định hợp lý
+const BE_EXCEPTION_TYPE_MAP: Record<string, ExceptionType> = {
+  LOST_TICKET: 'lost_qr',
+  WRONG_PLATE: 'wrong_plate',
+  WRONG_ZONE: 'wrong_zone',
+}
+
+export function mapException(e: BeException): ManagerException {
+  return {
+    id: e.id,
+    type: BE_EXCEPTION_TYPE_MAP[e.type] ?? 'lost_qr',
+    vehiclePlate: e.newLicensePlate || e.session?.licensePlate || e.oldLicensePlate || '—',
+    slotCode: '—', // BE Exception không lưu slotCode trực tiếp
+    timestamp: e.createdAt,
+    staffId: '',
+    staffName: '—',
+    status: 'pending',
+    notes: e.description ?? undefined,
+    sessionId: e.sessionId,
+    timeline: [
+      { time: e.createdAt, actor: 'Hệ thống', action: e.description || 'Ghi nhận ngoại lệ' },
+    ],
+  }
+}

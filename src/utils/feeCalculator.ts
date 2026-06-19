@@ -1,8 +1,8 @@
-// Tính phí đỗ xe theo loại xe, thời gian, giờ cao điểm — dùng mock pricing từ MOCK_PRICING
-import { MOCK_PRICING, MOCK_PEAK_HOURS } from '@/api/mockPricing'
+// Tính phí đỗ xe theo loại xe, thời gian, giờ cao điểm — dùng bảng giá thật từ pricingStore (BE)
+import { getCachedPricing } from '@/store/pricingStore'
 import type { ParkingSession } from '@/utils/types'
 
-export const LOST_TICKET_SURCHARGE = 50_000  // Phụ thu mất vé: 50,000 VND
+export const LOST_TICKET_SURCHARGE = 50_000  // Phụ thu mất vé: 50,000 VND (khớp BE pricing.service.ts)
 
 export interface FeeBreakdown {
   checkInTime:      Date
@@ -23,21 +23,19 @@ export interface FeeBreakdown {
   rateOvernight:    number     // Giá qua đêm (VND/lần)
 }
 
-// Trả về tên ngày tiếng Việt khớp với MOCK_PEAK_HOURS.days
-function dayLabel(date: Date): string {
-  return ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][date.getDay()]
-}
-
 function toHHMM(date: Date): string {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
+// BE chỉ lưu giờ cao điểm dạng mảng số (0-23), không phân biệt ngày trong tuần
 function isPeakTime(date: Date): boolean {
-  const day  = dayLabel(date)
+  const { peakHours } = getCachedPricing()
+  if (peakHours.length > 0) return peakHours.includes(date.getHours())
+
+  // Chưa load được pricingStore (vd. gọi trước khi AppLayout mount) → dùng mặc định khớp BE
   const time = toHHMM(date)
-  return MOCK_PEAK_HOURS.some(
-    (ph) => ph.days.includes(day) && time >= ph.startTime && time <= ph.endTime,
-  )
+  const defaultRanges = [['07:00', '09:00'], ['17:00', '19:00']]
+  return defaultRanges.some(([start, end]) => time >= start && time <= end)
 }
 
 export function calculateFee(
@@ -45,10 +43,11 @@ export function calculateFee(
   checkOut:    Date = new Date(),
   lostTicket:  boolean = false,
 ): FeeBreakdown {
-  const pricing     = MOCK_PRICING.find((p) => p.vehicleType === session.vehicleType)
-  const rateNormal   = pricing?.normalRate    ?? 5_000
-  const ratePeak     = pricing?.peakRate      ?? 8_000
-  const rateOvernight = pricing?.overnightRate ?? 20_000
+  const { rules } = getCachedPricing()
+  const pricing = rules.find((p) => p.vehicleType === session.vehicleType)
+  const rateNormal     = pricing?.normalRate    ?? 5_000
+  const ratePeak       = pricing?.peakRate      ?? 8_000
+  const rateOvernight  = pricing?.overnightRate ?? 20_000
 
   const checkIn        = new Date(session.checkInTime)
   const durationMs     = Math.max(0, checkOut.getTime() - checkIn.getTime())

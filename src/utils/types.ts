@@ -108,4 +108,28 @@ export interface Reservation {
   id:                   string
   code:                 string          // RSV-XXXXXX
   driverId:             string
-  vehic
+  vehicleType:          VehicleType
+  slotId:               string          // slot được giữ
+  slotCode:             string
+  date:                 string          // YYYY-MM-DD
+  estimatedArrival:     string          // HH:mm
+  estimatedDeparture:   string          // HH:mm
+  durationMinutes:      number
+  estimatedFee:         number
+  isAutoAssigned:       boolean         // true nếu hệ thống tự chọn slot
+  status:               'pending' | 'checked_in' | 'cancelled' | 'expired'
+  createdAt:            string          // ISO
+  expiresAt:            string          // arrival + 15 phút (ISO) — deadline check-in
+}
+
+// Loại cảnh báo IoT từ cảm biến hoặc hệ thống phát hiện
+export type AlertType = 'sensor_error' | 'session_overtime' | 'wrong_zone'
+
+export interface ParkingAlert {
+  id: string
+  type: AlertType
+  slotCode: string
+  message: string
+  timestamp: string   // ISO string
+  status: 'pending' | 'resolved'
+}

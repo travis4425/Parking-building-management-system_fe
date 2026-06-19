@@ -16,17 +16,15 @@ import { useSlotStore }    from '@/store/slotStore'
 import { useConfigStore }  from '@/store/configStore'
 import { calculateFee }    from '@/utils/feeCalculator'
 import { cn } from '@/utils/cn'
-import {
-  MOCK_EXCEPTIONS,
-  type ManagerException,
-  type ExceptionType,
-  type ExceptionStatus,
-} from '@/api/mockExceptions'
+import { fetchExceptionsApi } from '@/api/exceptionsApi'
+import { mapException } from '@/api/mappers'
+import type { ManagerException, ExceptionType, ExceptionStatus } from '@/utils/types'
 
 // ─── Label / màu ─────────────────────────────────────────────────────────────
 const EX_TYPE_LABEL: Record<ExceptionType, string> = {
   lost_qr:      'Mất thẻ QR',
   wrong_plate:  'Sai biển số',
+  wrong_zone:   'Sai khu vực',
   overtime:     'Quá hạn',
   sensor_error: 'Sensor lỗi',
 }
@@ -34,6 +32,7 @@ const EX_TYPE_LABEL: Record<ExceptionType, string> = {
 const EX_TYPE_COLOR: Record<ExceptionType, string> = {
   lost_qr:      'bg-red-100 text-red-700 border-red-200',
   wrong_plate:  'bg-yellow-100 text-yellow-700 border-yellow-200',
+  wrong_zone:   'bg-purple-100 text-purple-700 border-purple-200',
   overtime:     'bg-orange-100 text-orange-700 border-orange-200',
   sensor_error: 'bg-gray-100 text-gray-600 border-gray-300',
 }
@@ -41,6 +40,7 @@ const EX_TYPE_COLOR: Record<ExceptionType, string> = {
 const EX_TYPE_ICON: Record<ExceptionType, React.ReactNode> = {
   lost_qr:      <QrCode    className="w-4 h-4" />,
   wrong_plate:  <ScanLine  className="w-4 h-4" />,
+  wrong_zone:   <AlertTriangle className="w-4 h-4" />,
   overtime:     <Clock     className="w-4 h-4" />,
   sensor_error: <Cpu       className="w-4 h-4" />,
 }
@@ -129,8 +129,15 @@ export default function ManagerExceptions() {
   const threshold      = useConfigStore((s) => s.overtimeThresholdHours)
   const surchargePct   = useConfigStore((s) => s.overtimeSurchargePercent)
 
-  // Local copy để đổi status / ghi chú không ảnh hưởng mock gốc
-  const [exceptions,   setExceptions]   = useState<ManagerException[]>(MOCK_EXCEPTIONS)
+  // Danh sách ngoại lệ thật từ BE (GET /exceptions) — status/notes/timeline chỉ tồn tại trên FE
+  // vì BE Exception là log append-only, không có các trường này
+  const [exceptions,   setExceptions]   = useState<ManagerException[]>([])
+
+  useEffect(() => {
+    fetchExceptionsApi()
+      .then((list) => setExceptions(list.map(mapException)))
+      .catch((err) => console.error('Lỗi tải danh sách ngoại lệ:', err))
+  }, [])
   const [nowMs,        setNowMs]        = useState(() => Date.now())
   const [filterType,   setFilterType]   = useState<ExceptionType | 'all'>('all')
   const [filterStatus, setFilterStatus] = useState<ExceptionStatus | 'all'>('all')
@@ -475,6 +482,7 @@ export default function ManagerExceptions() {
             <option value="all">Tất cả loại</option>
             <option value="lost_qr">Mất thẻ QR</option>
             <option value="wrong_plate">Sai biển số</option>
+            <option value="wrong_zone">Sai khu vực</option>
             <option value="overtime">Quá hạn</option>
             <option value="sensor_error">Sensor lỗi</option>
           </select>

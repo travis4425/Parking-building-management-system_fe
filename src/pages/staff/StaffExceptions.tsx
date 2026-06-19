@@ -6,6 +6,7 @@ import { useSlotStore } from '@/store/slotStore'
 import { useAlertStore } from '@/store/alertStore'
 import { useAuthStore } from '@/store/authStore'
 import { calculateFee, formatDuration, LOST_TICKET_SURCHARGE } from '@/utils/feeCalculator'
+import { reportLostTicketApi, reportWrongPlateApi } from '@/api/exceptionsApi'
 import { MOCK_CONTACT_MAP } from '@/api/mockSessions'
 import type { ParkingSession, ParkingAlert } from '@/utils/types'
 import { toast } from 'sonner'
@@ -34,7 +35,7 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
 
 export default function StaffExceptions() {
   const [searchParams]  = useSearchParams()
-  const { sessions, findByPlate, completeSession, updatePlate } = useSessionStore()
+  const { sessions, findByPlate, checkOutSession, loadSessions } = useSessionStore()
   const { slots, updateSlotStatus } = useSlotStore()
   const { alerts, resolveAlert }    = useAlertStore()
   const { user } = useAuthStore()
@@ -114,7 +115,7 @@ export default function StaffExceptions() {
   }
 
   function vehicleLabel(t: string) {
-    return t === 'motorbike' ? 'Xe máy' : t === 'car' ? 'Ô tô' : 'Xe tải'
+    return t === 'motorbike' ? 'Xe máy' : t === 'car' ? 'Ô tô' : 'Xe đạp'
   }
 
   // --- Tab 1 handlers ---
@@ -124,16 +125,31 @@ export default function StaffExceptions() {
     setLQDone(false)
   }
 
-  function handleLQConfirm() {
+  async function handleLQConfirm() {
     if (!lqSession) return
     const fee = calculateFee(lqSession, now, true)
-    completeSession(lqSession.id, fee.total, user?.id ?? 'staff')
-    addAudit(
-      'Xử lý mất thẻ QR',
-      `Biển số: ${lqSession.vehiclePlate}, Slot: ${lqSession.slotCode}, Tổng phí: ${formatVND(fee.total)} (incl. phụ thu ${formatVND(LOST_TICKET_SURCHARGE)})`,
-    )
-    setLQDone(true)
-    toast.success('Đã xử lý và ghi log ngoại lệ')
+    try {
+      // BE tự tính phí thật (đã bao gồm LOST_TICKET_SURCHARGE) khi checkout với lostTicket: true
+      const result = await checkOutSession(lqSession.qrCode, { lostTicket: true })
+      // Ghi nhận Exception (mất thẻ) để có log/audit phía BE — không chặn luồng nếu lỗi
+      try {
+        await reportLostTicketApi({
+          licensePlate: lqSession.vehiclePlate,
+          description: `Xử lý mất thẻ QR tại quầy, slot ${lqSession.slotCode}`,
+        })
+      } catch (err) {
+        console.error('Không ghi được log Exception mất thẻ QR:', err)
+      }
+      const totalFee = result.fee ?? fee.total
+      addAudit(
+        'Xử lý mất thẻ QR',
+        `Biển số: ${lqSession.vehiclePlate}, Slot: ${lqSession.slotCode}, Tổng phí: ${formatVND(totalFee)} (incl. phụ thu ${formatVND(LOST_TICKET_SURCHARGE)})`,
+      )
+      setLQDone(true)
+      toast.success('Đã xử lý và ghi log ngoại lệ')
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Xử lý mất thẻ QR thất bại')
+    }
   }
 
   // --- Tab 2 handlers ---
@@ -144,17 +160,28 @@ export default function StaffExceptions() {
     setWPNewPlate('')
   }
 
-  function handleWPConfirm() {
+  async function handleWPConfirm() {
     if (!wpSession || !wpNewPlate.trim()) return
     const oldPlate = wpSession.vehiclePlate
     const newPlate = wpNewPlate.trim().toUpperCase()
-    updatePlate(wpSession.id, newPlate)
-    addAudit(
-      'Sửa biển số',
-      `Slot: ${wpSession.slotCode} | ${oldPlate} → ${newPlate}`,
-    )
-    setWPDone(true)
-    toast.success('Đã cập nhật biển số thành công')
+    try {
+      // BE tự cập nhật licensePlate của session + ghi Exception + AuditLog trong 1 transaction
+      await reportWrongPlateApi({
+        sessionId: wpSession.id,
+        newLicensePlate: newPlate,
+        userId: user?.id ?? '',
+        description: `Sửa biển số tại quầy, slot ${wpSession.slotCode}`,
+      })
+      loadSessions().catch(() => {})
+      addAudit(
+        'Sửa biển số',
+        `Slot: ${wpSession.slotCode} | ${oldPlate} → ${newPlate}`,
+      )
+      setWPDone(true)
+      toast.success('Đã cập nhật biển số thành công')
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Cập nhật biển số thất bại')
+    }
   }
 
   // --- Tab 4 handler ---

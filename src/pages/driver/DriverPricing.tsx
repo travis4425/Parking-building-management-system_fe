@@ -511,4 +511,15 @@ export default function DriverPricing() {
                           out.setTime(out.getTime() + calcDur * 3_600_000)
                           return out.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
                         })()}
-                      </spa
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

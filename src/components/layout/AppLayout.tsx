@@ -45,4 +45,11 @@ export default function AppLayout({ children, pageTitle }: AppLayoutProps) {
           pageTitle={pageTitle}
         />
 
-        {/* Nội dung trang
+        {/* Nội dung trang — scroll độc lập */}
+        <main className="flex-1 overflow-y-auto">
+          {children}
+        </main>
+      </div>
+    </div>
+  )
+}

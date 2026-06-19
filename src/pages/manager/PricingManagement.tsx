@@ -400,4 +400,15 @@ export default function PricingManagement() {
       <PricingModal
         open={pricingModal.open}
         rule={pricingModal.rule}
-        onClose={() => setPricingM
+        onClose={() => setPricingModal({ open: false, rule: null })}
+        onSave={handleSavePricing}
+      />
+      <PeakHourModal
+        open={peakModal.open}
+        peak={peakModal.peak}
+        onClose={() => setPeakModal({ open: false, peak: null })}
+        onSave={handleSavePeakHour}
+      />
+    </PageWrapper>
+  )
+}

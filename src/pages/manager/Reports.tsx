@@ -1,17 +1,13 @@
 // Trang báo cáo thống kê: doanh thu, lưu lượng xe, tỷ lệ lấp đầy theo tầng + xuất Excel
-import { useState, useMemo } from 'react'
+// Đã nối với BE thật: /reports/revenue, /reports/traffic, /reports/occupancy
+import { useState, useMemo, useEffect } from 'react'
 import { toast } from 'sonner'
 import {
   BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
 import * as XLSX from 'xlsx'
-import {
-  HOURLY_TRAFFIC,
-  REVENUE_7DAYS,
-  FLOOR_OCCUPANCY,
-  PERIOD_STATS,
-} from '@/api/mockReports'
+import { fetchRevenueReport, fetchTrafficReport, fetchOccupancyReport } from '@/api/reportsApi'
 
 // Loại khoảng thời gian để lọc số liệu
 type Period = 'today' | 'week' | 'month'
@@ -61,25 +57,127 @@ function TrafficTooltip({ active, payload, label }: TooltipProps) {
   )
 }
 
+// Map lựa chọn period trên UI sang giá trị BE chấp nhận
+const PERIOD_TO_BE: Record<Period, 'day' | 'week' | 'month'> = {
+  today: 'day',
+  week: 'week',
+  month: 'month',
+}
+
+function toISODate(d: Date) {
+  return d.toISOString().slice(0, 10)
+}
+
+// Tính khoảng start/end ngày tương ứng period — khớp logic BE (reports.service.ts: getRevenue)
+function periodRange(period: Period): { start: Date; end: Date } {
+  const today = new Date()
+  if (period === 'today') return { start: today, end: today }
+  if (period === 'week') {
+    const day = today.getDay()
+    const sunday = new Date(today)
+    sunday.setDate(today.getDate() - day)
+    const nextSunday = new Date(sunday)
+    nextSunday.setDate(sunday.getDate() + 7)
+    return { start: sunday, end: nextSunday }
+  }
+  const start = new Date(today.getFullYear(), today.getMonth(), 1)
+  const end = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+  return { start, end }
+}
+
+interface HourlyRow { hour: string; vehicles: number }
+interface RevenueDayRow { date: string; revenue: number; vehicles: number }
+interface FloorRow { floor: string; occupied: number; total: number; rate: number }
+
 export default function Reports() {
   const [period, setPeriod] = useState<Period>('today')
+  const [isLoading, setIsLoading] = useState(false)
+  const [stats, setStats] = useState({ revenue: 0, vehicles: 0, avgPerDay: 0 })
+  const [hourlyTraffic, setHourlyTraffic] = useState<HourlyRow[]>([])
+  const [revenue7Days, setRevenue7Days] = useState<RevenueDayRow[]>([])
+  const [floorOccupancy, setFloorOccupancy] = useState<FloorRow[]>([])
 
-  // Số liệu metric cards theo khoảng thời gian đã chọn
-  const stats = useMemo(() => PERIOD_STATS[period], [period])
+  useEffect(() => {
+    let cancelled = false
+    setIsLoading(true)
+    const { start, end } = periodRange(period)
+    const startISO = toISODate(start)
+    const endISO = toISODate(end)
+
+    // "Doanh thu 7 ngày gần nhất" luôn cố định 7 ngày, không phụ thuộc bộ lọc period
+    const today = new Date()
+    const last7Dates = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today)
+      d.setDate(today.getDate() - (6 - i))
+      return d
+    })
+
+    Promise.all([
+      fetchRevenueReport({ period: PERIOD_TO_BE[period] }),
+      fetchTrafficReport({ startDate: startISO, endDate: endISO }),
+      fetchOccupancyReport({ startDate: startISO, endDate: endISO }),
+      Promise.all(
+        last7Dates.map((d) => {
+          const iso = toISODate(d)
+          return fetchRevenueReport({ period: 'day', startDate: iso, endDate: iso }).then((r) => ({
+            date: iso,
+            revenue: r.totalRevenue,
+            vehicles: r.totalSessions,
+          }))
+        }),
+      ),
+    ])
+      .then(([revenue, traffic, occupancy, revenue7]) => {
+        if (cancelled) return
+        const daysInPeriod = period === 'today' ? 1 : period === 'week' ? 7 : end.getDate()
+        setStats({
+          revenue: revenue.totalRevenue,
+          vehicles: revenue.totalSessions,
+          avgPerDay: Math.round(revenue.totalSessions / daysInPeriod),
+        })
+        setHourlyTraffic(
+          traffic.hourly.map((h) => ({ hour: `${String(h.hour).padStart(2, '0')}:00`, vehicles: h.count })),
+        )
+        setFloorOccupancy(
+          occupancy.byZone.map((z) => ({
+            floor: z.zone?.name ?? '—',
+            occupied: z.occupiedSlots,
+            total: z.totalCapacity,
+            rate: z.occupancyRate,
+          })),
+        )
+        setRevenue7Days(
+          revenue7.map((r) => ({
+            date: new Date(r.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),
+            revenue: r.revenue,
+            vehicles: r.vehicles,
+          })),
+        )
+      })
+      .catch((err) => {
+        console.error('Lỗi tải báo cáo:', err)
+        toast.error('Không tải được dữ liệu báo cáo')
+      })
+      .finally(() => !cancelled && setIsLoading(false))
+
+    return () => {
+      cancelled = true
+    }
+  }, [period])
 
   // Xuất Excel — ghi 3 sheet: Lưu lượng giờ, Doanh thu 7 ngày, Lấp đầy tầng
   function handleExportExcel() {
     const wb = XLSX.utils.book_new()
 
     // Sheet 1: Lưu lượng theo giờ
-    const trafficData = HOURLY_TRAFFIC.map((r) => ({
+    const trafficData = hourlyTraffic.map((r) => ({
       'Giờ': r.hour,
       'Số lượt xe': r.vehicles,
     }))
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(trafficData), 'Lưu lượng giờ')
 
     // Sheet 2: Doanh thu 7 ngày
-    const revenueData = REVENUE_7DAYS.map((r) => ({
+    const revenueData = revenue7Days.map((r) => ({
       'Ngày': r.date,
       'Doanh thu (VND)': r.revenue,
       'Số lượt xe': r.vehicles,
@@ -87,8 +185,8 @@ export default function Reports() {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(revenueData), 'Doanh thu 7 ngày')
 
     // Sheet 3: Tỷ lệ lấp đầy tầng
-    const occupancyData = FLOOR_OCCUPANCY.map((r) => ({
-      'Tầng': r.floor,
+    const occupancyData = floorOccupancy.map((r) => ({
+      'Khu/Tầng': r.floor,
       'Đã có xe': r.occupied,
       'Tổng slot': r.total,
       'Tỷ lệ (%)': r.rate,
@@ -121,7 +219,8 @@ export default function Reports() {
           {/* Nút xuất Excel */}
           <button
             onClick={handleExportExcel}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            disabled={isLoading}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -179,7 +278,7 @@ export default function Reports() {
           Lưu lượng xe theo giờ trong ngày
         </h2>
         <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={HOURLY_TRAFFIC} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+          <BarChart data={hourlyTraffic} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis
               dataKey="hour"
@@ -199,8 +298,11 @@ export default function Reports() {
         <h2 className="text-base font-semibold text-gray-800 mb-4">
           Tỷ lệ lấp đầy theo tầng
         </h2>
+        {floorOccupancy.length === 0 && !isLoading && (
+          <p className="text-sm text-gray-400 text-center py-6">Chưa có dữ liệu khu/tầng</p>
+        )}
         <div className="space-y-5">
-          {FLOOR_OCCUPANCY.map((floor) => (
+          {floorOccupancy.map((floor) => (
             <div key={floor.floor}>
               <div className="flex items-center justify-between text-sm mb-1.5">
                 <span className="font-medium text-gray-700">{floor.floor}</span>
@@ -251,7 +353,7 @@ export default function Reports() {
           Doanh thu 7 ngày gần nhất
         </h2>
         <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={REVENUE_7DAYS} margin={{ top: 4, right: 24, left: 8, bottom: 0 }}>
+          <LineChart data={revenue7Days} margin={{ top: 4, right: 24, left: 8, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="date" tick={{ fontSize: 11 }} />
             <YAxis

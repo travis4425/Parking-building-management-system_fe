@@ -70,5 +70,5 @@ export const useReservationStore = create<ReservationStore>((set, get) => ({
 
 // Tên hiển thị loại xe
 export function vehicleLabel(t: VehicleType): string {
-  return t === 'motorbike' ? 'Xe máy' : t === 'car' ? 'Ô tô' : 'Xe tải'
+  return t === 'motorbike' ? 'Xe máy' : t === 'car' ? 'Ô tô' : 'Xe đạp'
 }

@@ -358,4 +358,24 @@ export default function CheckOut() {
                     Tiếp nhận xe tiếp theo
                   </button>
                 </div>
-        
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {showReceipt && session && fee && payMethod && (
+        <Receipt session={session} fee={fee} payMethod={payMethod} onClose={() => setShowReceipt(false)} />
+      )}
+    </PageWrapper>
+  )
+}
+
+function FeeRow({ label, amount, warn }: { label: string; amount: number; warn?: boolean }) {
+  return (
+    <div className="flex justify-between items-center text-sm">
+      <span className={warn ? 'text-amber-600' : 'text-gray-600'}>{label}</span>
+      <span className={`font-semibold ${warn ? 'text-amber-700' : 'text-gray-900'}`}>{fmt(amount)}</span>
+    </div>
+  )
+}
