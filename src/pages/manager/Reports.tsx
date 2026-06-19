@@ -1,6 +1,6 @@
 // Trang báo cáo thống kê: doanh thu, lưu lượng xe, tỷ lệ lấp đầy theo tầng + xuất Excel
 // Đã nối với BE thật: /reports/revenue, /reports/traffic, /reports/occupancy
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import {
   BarChart, Bar, LineChart, Line,

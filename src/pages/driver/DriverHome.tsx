@@ -8,8 +8,8 @@ import {
 import { useSlotStore } from '@/store/slotStore'
 import { useSessionStore } from '@/store/sessionStore'
 import { useAuthStore } from '@/store/authStore'
+import { usePricingStore } from '@/store/pricingStore'
 import { calculateFee, formatDuration } from '@/utils/feeCalculator'
-import { MOCK_PRICING, MOCK_PEAK_HOURS } from '@/api/mockPricing'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PARKING_INFO = {
@@ -60,15 +60,24 @@ function availTextColor(pct: number) {
 export default function DriverHome() {
   const [now, setNow] = useState(new Date())
 
-  const slots    = useSlotStore((s) => s.slots)
-  const sessions = useSessionStore((s) => s.sessions)
-  const { user } = useAuthStore()
+  const slots      = useSlotStore((s) => s.slots)
+  const sessions   = useSessionStore((s) => s.sessions)
+  const { user }   = useAuthStore()
+  const pricingRules = usePricingStore((s) => s.rules)
+  const peakRanges    = usePricingStore((s) => s.peakRanges)
+  const loadPricing   = usePricingStore((s) => s.loadPricing)
+  const isPricingLoaded = usePricingStore((s) => s.isLoaded)
 
   // Cập nhật "now" mỗi phút để phí tạm tính tự động tăng
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000)
     return () => clearInterval(id)
   }, [])
+
+  // Tải bảng giá thật từ BE 1 lần khi vào trang
+  useEffect(() => {
+    if (!isPricingLoaded) loadPricing()
+  }, [isPricingLoaded, loadPricing])
 
   // ── Derived state ──────────────────────────────────────────────────────────
   const nowMin = now.getHours() * 60 + now.getMinutes()
@@ -274,7 +283,7 @@ export default function DriverHome() {
         </div>
 
         <div className="space-y-3">
-          {MOCK_PRICING.map((rule) => {
+          {pricingRules.map((rule) => {
             const Icon = VEHICLE_ICONS[rule.vehicleType] ?? Car
             return (
               <div
@@ -305,7 +314,7 @@ export default function DriverHome() {
             <Info className="w-3.5 h-3.5" /> Khung giờ cao điểm
           </p>
           <div className="space-y-1">
-            {MOCK_PEAK_HOURS.map((ph) => (
+            {peakRanges.map((ph) => (
               <div key={ph.id} className="flex items-center justify-between text-xs text-orange-600">
                 <span>{ph.label}</span>
                 <span className="font-mono font-semibold">

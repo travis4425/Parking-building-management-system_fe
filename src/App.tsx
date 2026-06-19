@@ -28,7 +28,6 @@ import AdminPermissions  from '@/pages/admin/AdminPermissions'
 import AdminConfig       from '@/pages/admin/AdminConfig'
 import AdminAuditLog     from '@/pages/admin/AdminAuditLog'
 import AdminDevices      from '@/pages/admin/AdminDevices'
-import DemoPage          from '@/pages/demo/DemoPage'
 import { useAuthStore, getHomeByRole } from '@/store/authStore'
 
 function RootRedirect() {
@@ -47,9 +46,6 @@ export default function App() {
       <Routes>
         {/* Root redirect theo role */}
         <Route path="/" element={<RootRedirect />} />
-
-        {/* Trang demo — public, không cần login */}
-        <Route path="/demo" element={<DemoPage />} />
 
         {/* Trang đăng nhập — public, không có sidebar */}
         <Route path="/login" element={<LoginPage />} />
