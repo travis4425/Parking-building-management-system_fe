@@ -15,12 +15,11 @@ import { useIotStore }  from '@/store/iotStore'
 import { decodeToken }  from '@/utils/qrToken'
 import { useSessionStore } from '@/store/sessionStore'
 import { useSlotStore } from '@/store/slotStore'
-import { useAuthStore } from '@/store/authStore'
 import { calculateFee, formatDuration, LOST_TICKET_SURCHARGE, type FeeBreakdown } from '@/utils/feeCalculator'
 import type { ParkingSession, PayMethod } from '@/utils/types'
 
 const VEHICLE_LABELS: Record<string, string> = {
-  motorbike: 'Xe máy', car: 'Ô tô', truck: 'Xe tải nhỏ',
+  motorbike: 'Xe máy', car: 'Ô tô', bicycle: 'Xe đạp',
 }
 
 function fmt(n: number) {
@@ -36,12 +35,12 @@ const PAY_OPTIONS: { val: PayMethod; label: string; Icon: ComponentType<{ classN
 
 // ── Main page ────────────────────────────────────────────────────────────────
 export default function CheckOut() {
-  const sessions    = useSessionStore((s) => s.sessions)
-  const findByQR    = useSessionStore((s) => s.findByQR)
-  const findByPlate = useSessionStore((s) => s.findByPlate)
-  const complete    = useSessionStore((s) => s.completeSession)
-  const updateSlot  = useSlotStore((s) => s.updateSlotStatus)
-  const { user }    = useAuthStore()
+  const sessions      = useSessionStore((s) => s.sessions)
+  const findByQR      = useSessionStore((s) => s.findByQR)
+  const findByPlate   = useSessionStore((s) => s.findByPlate)
+  const checkOutSession = useSessionStore((s) => s.checkOutSession)
+  const updateSlot    = useSlotStore((s) => s.updateSlotStatus)
+  const [submitting,  setSubmitting]  = useState(false)
 
   const [scanActive,   setScanActive]   = useState(true)
   const [plateInput,   setPlateInput]   = useState('')
@@ -97,19 +96,31 @@ export default function CheckOut() {
     applySession(findByPlate(plateInput), isLostTicket)
   }
 
-  function handleConfirmPayment() {
+  async function handleConfirmPayment() {
     if (!session || !fee || !payMethod) return
-    complete(session.id, fee.total, user?.id ?? 'staff')
-    updateSlot(session.slotId, 'available')
-    setConfirmed(true)
-    setBarrierOpen(true)
+    setSubmitting(true)
+    try {
+      // BE tính phí thật (pricing thật, có overnightRate + phụ thu mất vé) — dùng làm số liệu chính thức
+      const result = await checkOutSession(session.qrCode, { lostTicket: isLostTicket })
+      if (result.priceBreakdown) {
+        setFee({ ...fee, total: result.priceBreakdown.totalFee, isPeak: result.priceBreakdown.isPeakHour, isOvernight: result.priceBreakdown.isOvernight })
+      }
+      updateSlot(session.slotId, 'available')
+      setConfirmed(true)
+      setBarrierOpen(true)
 
-    // Mở barrier cổng B khi xe ra, tự đóng sau 4 giây (simulate IoT)
-    useIotStore.getState().openBarrier('B')
-    setTimeout(() => useIotStore.getState().closeBarrier('B'), 4000)
+      // Mở barrier cổng B khi xe ra, tự đóng sau 4 giây (simulate IoT)
+      useIotStore.getState().openBarrier('B')
+      setTimeout(() => useIotStore.getState().closeBarrier('B'), 4000)
 
-    toast.success('Thanh toán thành công — Barrier đã mở')
-    setTimeout(() => setShowReceipt(true), 1200)
+      toast.success('Thanh toán thành công — Barrier đã mở')
+      setTimeout(() => setShowReceipt(true), 1200)
+    } catch (err) {
+      console.error('Check-out thất bại:', err)
+      toast.error('Không thể check-out — vui lòng thử lại')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   function handleReset() {
@@ -327,12 +338,12 @@ export default function CheckOut() {
                     </div>
                   )}
 
-                  <button onClick={handleConfirmPayment} disabled={!payMethod}
+                  <button onClick={handleConfirmPayment} disabled={!payMethod || submitting}
                     className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700
                                disabled:opacity-40 disabled:cursor-not-allowed
                                text-white font-semibold flex items-center justify-center gap-2 transition-colors">
                     <CheckCircle className="w-5 h-5" />
-                    Xác nhận thanh toán &amp; Mở barrier
+                    {submitting ? 'Đang xử lý...' : 'Xác nhận thanh toán & Mở barrier'}
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -347,24 +358,4 @@ export default function CheckOut() {
                     Tiếp nhận xe tiếp theo
                   </button>
                 </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {showReceipt && session && fee && payMethod && (
-        <Receipt session={session} fee={fee} payMethod={payMethod} onClose={() => setShowReceipt(false)} />
-      )}
-    </PageWrapper>
-  )
-}
-
-function FeeRow({ label, amount, warn }: { label: string; amount: number; warn?: boolean }) {
-  return (
-    <div className="flex justify-between items-center text-sm">
-      <span className={warn ? 'text-amber-600' : 'text-gray-600'}>{label}</span>
-      <span className={`font-semibold ${warn ? 'text-amber-700' : 'text-gray-900'}`}>{fmt(amount)}</span>
-    </div>
-  )
-}
+        

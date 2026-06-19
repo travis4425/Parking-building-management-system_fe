@@ -44,7 +44,7 @@ function genExitCode() {
 const VEHICLE_LABELS: Record<string, string> = {
   motorbike: 'Xe máy',
   car:       'Ô tô',
-  truck:     'Xe tải',
+  bicycle:   'Xe đạp',
 }
 
 const PAY_OPTIONS: { val: PayMethod; label: string; icon: React.ElementType; desc: string }[] = [

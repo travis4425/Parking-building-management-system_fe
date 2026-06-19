@@ -21,7 +21,7 @@ const GATE_DESC: Record<string, string> = {
 const VEHICLE_DESC: Record<VehicleType, string> = {
   motorbike: 'xe máy (slot nhỏ)',
   car:       'ô tô (slot vừa)',
-  truck:     'xe tải nhỏ (slot lớn)',
+  bicycle:   'xe đạp (slot nhỏ)',
 }
 
 // Parse JSON an toàn — xử lý cả trường hợp Gemini bọc trong markdown code block

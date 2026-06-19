@@ -26,7 +26,7 @@ function fmt(n: number) {
 const VEHICLE_LABELS: Record<string, string> = {
   motorbike: 'Xe máy',
   car:       'Ô tô',
-  truck:     'Xe tải nhỏ',
+  bicycle:   'Xe đạp',
 }
 
 const PAY_OPTIONS: { val: PayMethod; label: string; icon: React.ElementType; color: string }[] = [

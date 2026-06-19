@@ -1,25 +1,25 @@
 // Driver Portal — Bảng giá đầy đủ, timeline cao điểm, thông tin bãi, tính phí nhanh
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
-  Bike, Car, Truck, Clock, MapPin, Phone,
+  Bike, Car, Clock, MapPin, Phone,
   Calculator, CheckCircle2, X, Zap, ShieldCheck,
   ChevronRight, Moon,
 } from 'lucide-react'
-import { MOCK_PRICING, MOCK_PEAK_HOURS } from '@/api/mockPricing'
+import { usePricingStore } from '@/store/pricingStore'
 import { calculateFee, type FeeBreakdown } from '@/utils/feeCalculator'
-import type { ParkingSession, VehicleType } from '@/utils/types'
+import type { ParkingSession, VehicleType, PeakHourRange } from '@/utils/types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const VEHICLE_ICONS: Record<VehicleType, React.ElementType> = {
   motorbike: Bike,
+  bicycle:   Bike,
   car:       Car,
-  truck:     Truck,
 }
 
 const VEHICLE_LABELS: Record<VehicleType, string> = {
   motorbike: 'Xe máy',
+  bicycle:   'Xe đạp',
   car:       'Ô tô',
-  truck:     'Xe tải nhỏ',
 }
 
 const DURATION_OPTS: { val: number; label: string }[] = [
@@ -73,7 +73,7 @@ function PeakTimeline({
   ranges,
   label,
 }: {
-  ranges: typeof MOCK_PEAK_HOURS
+  ranges: PeakHourRange[]
   label: string
 }) {
   // Mỗi phần tử = 1 ô 30 phút (index 0 = 00:00, index 47 = 23:30)
@@ -127,9 +127,9 @@ function PeakTimeline({
 // ─── Floor Map SVG ────────────────────────────────────────────────────────────
 function FloorMap() {
   const floors = [
-    { label: 'Tầng 1 — Khu A', sub: 'Xe máy (24 chỗ)', color: '#bfdbfe', stroke: '#3b82f6' },
-    { label: 'Tầng 2 — Khu B', sub: 'Ô tô / Xe tải (24 chỗ)', color: '#bbf7d0', stroke: '#22c55e' },
-    { label: 'Tầng 3 — Khu C', sub: 'Ô tô / Xe tải (24 chỗ)', color: '#bbf7d0', stroke: '#22c55e' },
+    { label: 'Tầng 1 — Khu A', sub: 'Xe máy / Xe đạp (24 chỗ)', color: '#bfdbfe', stroke: '#3b82f6' },
+    { label: 'Tầng 2 — Khu B', sub: 'Ô tô (24 chỗ)', color: '#bbf7d0', stroke: '#22c55e' },
+    { label: 'Tầng 3 — Khu C', sub: 'Ô tô (24 chỗ)', color: '#bbf7d0', stroke: '#22c55e' },
   ]
 
   return (
@@ -165,13 +165,22 @@ function FloorMap() {
       <rect x="10" y="180" width="10" height="7" rx="1" fill="#bfdbfe" stroke="#3b82f6" strokeWidth="1" />
       <text x="24" y="186" fontSize="8" fill="#6b7280">Xe máy</text>
       <rect x="75" y="180" width="10" height="7" rx="1" fill="#bbf7d0" stroke="#22c55e" strokeWidth="1" />
-      <text x="89" y="186" fontSize="8" fill="#6b7280">Ô tô / Xe tải</text>
+      <text x="89" y="186" fontSize="8" fill="#6b7280">Ô tô</text>
     </svg>
   )
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function DriverPricing() {
+  const rules = usePricingStore((s) => s.rules)
+  const peakRanges = usePricingStore((s) => s.peakRanges)
+  const isLoaded = usePricingStore((s) => s.isLoaded)
+  const loadPricing = usePricingStore((s) => s.loadPricing)
+
+  useEffect(() => {
+    if (!isLoaded) loadPricing()
+  }, [isLoaded, loadPricing])
+
   const [showCalc,    setShowCalc]    = useState(false)
   const [calcVehicle, setCalcVehicle] = useState<VehicleType>('motorbike')
   const [calcStart,   setCalcStart]   = useState('08:00')
@@ -182,13 +191,7 @@ export default function DriverPricing() {
     setCalcResult(estimateFeeFromHours(calcVehicle, calcStart, calcDur))
   }
 
-  // Group peak ranges by weekday vs weekend
-  const weekdayRanges = MOCK_PEAK_HOURS.filter(
-    (r) => r.days.some((d) => ['T2', 'T3', 'T4', 'T5', 'T6'].includes(d)),
-  )
-  const weekendRanges = MOCK_PEAK_HOURS.filter(
-    (r) => r.days.some((d) => ['T7', 'CN'].includes(d)),
-  )
+  // BE chỉ lưu 1 mảng giờ cao điểm chung cho mọi ngày — không phân biệt ngày thường/cuối tuần
 
   return (
     <div className="p-4 sm:p-5 max-w-lg mx-auto space-y-5 pb-24">
@@ -219,7 +222,7 @@ export default function DriverPricing() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {MOCK_PRICING.map((rule) => {
+              {rules.map((rule) => {
                 const Icon      = VEHICLE_ICONS[rule.vehicleType]
                 const isPopular = rule.vehicleType === 'motorbike'
                 return (
@@ -271,8 +274,7 @@ export default function DriverPricing() {
         </div>
 
         <div className="space-y-4">
-          <PeakTimeline ranges={weekdayRanges} label="Ngày thường (Thứ 2 — Thứ 6)" />
-          <PeakTimeline ranges={weekendRanges} label="Cuối tuần (Thứ 7 — Chủ nhật)" />
+          <PeakTimeline ranges={peakRanges} label="Áp dụng mọi ngày trong tuần" />
         </div>
 
         {/* Legend */}
@@ -289,7 +291,7 @@ export default function DriverPricing() {
 
         {/* Peak detail list */}
         <div className="space-y-2">
-          {MOCK_PEAK_HOURS.map((ph) => (
+          {peakRanges.map((ph) => (
             <div
               key={ph.id}
               className="flex items-center justify-between text-sm bg-orange-50 border border-orange-100 rounded-xl px-4 py-2.5"
@@ -300,10 +302,13 @@ export default function DriverPricing() {
               </div>
               <div className="text-right text-xs text-orange-600">
                 <p className="font-mono font-semibold">{ph.startTime} – {ph.endTime}</p>
-                <p className="text-orange-400">{ph.days.join(', ')}</p>
+                <p className="text-orange-400">Hằng ngày</p>
               </div>
             </div>
           ))}
+          {peakRanges.length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-2">Chưa có khung giờ cao điểm nào</p>
+          )}
         </div>
       </div>
 
@@ -338,7 +343,7 @@ export default function DriverPricing() {
             <FloorMap />
           </div>
           <p className="text-xs text-gray-400 text-center mt-2">
-            Tổng 72 chỗ · Tầng 1: xe máy · Tầng 2-3: ô tô &amp; xe tải
+            Tổng 72 chỗ · Tầng 1: xe máy &amp; xe đạp · Tầng 2-3: ô tô
           </p>
         </div>
 
@@ -506,15 +511,4 @@ export default function DriverPricing() {
                           out.setTime(out.getTime() + calcDur * 3_600_000)
                           return out.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
                         })()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+                      </spa

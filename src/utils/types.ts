@@ -16,8 +16,8 @@ export interface User {
 // available/occupied/reserved: do hệ thống tự set | maintenance/locked: do manager set thủ công
 export type SlotStatus = 'available' | 'occupied' | 'reserved' | 'maintenance' | 'locked'
 
-// Loại xe
-export type VehicleType = 'motorbike' | 'car' | 'truck'
+// Loại xe — đúng 3 loại chuẩn hoá với BE: MOTORBIKE / BICYCLE / CAR
+export type VehicleType = 'motorbike' | 'bicycle' | 'car'
 
 export interface ParkingSlot {
   id: string
@@ -71,6 +71,32 @@ export interface PeakHourRange {
   days: string[]      // ["T2","T3","T4","T5","T6"]
 }
 
+// Ngoại lệ (Exception) — khớp 3 loại BE thật (LOST_TICKET/WRONG_PLATE/WRONG_ZONE) + overtime/sensor_error
+// tính trực tiếp từ sessionStore/alertStore (không lưu trong BE Exception table)
+export type ExceptionType   = 'lost_qr' | 'wrong_plate' | 'wrong_zone' | 'overtime' | 'sensor_error'
+// BE Exception không có field status/notes/timeline — các trường này chỉ tồn tại trên FE trong phiên làm việc
+export type ExceptionStatus = 'pending' | 'resolved' | 'monitoring'
+
+export interface TimelineEvent {
+  time:   string   // ISO
+  actor:  string
+  action: string
+}
+
+export interface ManagerException {
+  id:          string
+  type:        ExceptionType
+  vehiclePlate: string
+  slotCode:    string
+  timestamp:   string          // ISO — thời điểm phát sinh
+  staffId:     string
+  staffName:   string
+  status:      ExceptionStatus
+  notes?:      string
+  sessionId?:  string
+  timeline:    TimelineEvent[]
+}
+
 export interface AuthState {
   user: User | null
   token: string | null
@@ -82,28 +108,4 @@ export interface Reservation {
   id:                   string
   code:                 string          // RSV-XXXXXX
   driverId:             string
-  vehicleType:          VehicleType
-  slotId:               string          // slot được giữ
-  slotCode:             string
-  date:                 string          // YYYY-MM-DD
-  estimatedArrival:     string          // HH:mm
-  estimatedDeparture:   string          // HH:mm
-  durationMinutes:      number
-  estimatedFee:         number
-  isAutoAssigned:       boolean         // true nếu hệ thống tự chọn slot
-  status:               'pending' | 'checked_in' | 'cancelled' | 'expired'
-  createdAt:            string          // ISO
-  expiresAt:            string          // arrival + 15 phút (ISO) — deadline check-in
-}
-
-// Loại cảnh báo IoT từ cảm biến hoặc hệ thống phát hiện
-export type AlertType = 'sensor_error' | 'session_overtime' | 'wrong_zone'
-
-export interface ParkingAlert {
-  id: string
-  type: AlertType
-  slotCode: string
-  message: string
-  timestamp: string   // ISO string
-  status: 'pending' | 'resolved'
-}
+  vehic

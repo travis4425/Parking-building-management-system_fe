@@ -25,7 +25,7 @@ const STATUS_META: Record<SlotStatus, { label: string; badge: string; desc: stri
 const VEHICLE_LABEL: Record<VehicleType, string> = {
   motorbike: 'Xe máy',
   car:       'Ô tô',
-  truck:     'Xe tải',
+  bicycle:   'Xe đạp',
 }
 
 // Chỉ manager mới được set 3 trạng thái này thủ công

@@ -1,5 +1,5 @@
 // Trang quản lý bảng giá — thêm/sửa mức giá theo loại xe và quản lý khung giờ cao điểm
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -7,14 +7,14 @@ import { toast } from 'sonner'
 import { Pencil, Plus, X, Clock, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { cn } from '@/utils/cn'
-import { MOCK_PRICING, MOCK_PEAK_HOURS } from '@/api/mockPricing'
+import { usePricingStore } from '@/store/pricingStore'
 import type { PricingRule, PeakHourRange, VehicleType } from '@/utils/types'
 
 // ─── Hằng số ─────────────────────────────────────────────────────────────────
 const VEHICLE_META: Record<VehicleType, { label: string; icon: string }> = {
-  motorbike: { label: 'Xe máy',  icon: '🛵' },
-  car:       { label: 'Ô tô',    icon: '🚗' },
-  truck:     { label: 'Xe tải',  icon: '🚚' },
+  motorbike: { label: 'Xe máy', icon: '🛵' },
+  bicycle:   { label: 'Xe đạp', icon: '🚲' },
+  car:       { label: 'Ô tô',   icon: '🚗' },
 }
 
 function formatVND(n: number) {
@@ -23,7 +23,7 @@ function formatVND(n: number) {
 
 // ─── Zod schema mức giá — dùng valueAsNumber trên input ──────────────────────
 const pricingSchema = z.object({
-  vehicleType:   z.enum(['motorbike', 'car', 'truck']),
+  vehicleType:   z.enum(['motorbike', 'bicycle', 'car']),
   normalRate:    z.number({ error: 'Nhập giá giờ thường' }).min(1_000, 'Tối thiểu 1,000 ₫'),
   peakRate:      z.number({ error: 'Nhập giá giờ cao điểm' }).min(1_000, 'Tối thiểu 1,000 ₫'),
   overnightRate: z.number({ error: 'Nhập giá qua đêm' }).min(1_000, 'Tối thiểu 1,000 ₫'),
@@ -195,44 +195,58 @@ function PeakHourModal({ open, peak, onClose, onSave }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function PricingManagement() {
-  const [rules, setRules]          = useState<PricingRule[]>(MOCK_PRICING)
-  const [peakHours, setPeakHours]  = useState<PeakHourRange[]>(MOCK_PEAK_HOURS)
+  const rules = usePricingStore((s) => s.rules)
+  const peakHours = usePricingStore((s) => s.peakRanges)
+  const isLoaded = usePricingStore((s) => s.isLoaded)
+  const loadPricing = usePricingStore((s) => s.loadPricing)
+  const saveRule = usePricingStore((s) => s.saveRule)
+  const deletePricingRule = usePricingStore((s) => s.deleteRule)
+  const savePeakRange = usePricingStore((s) => s.savePeakRange)
+  const deletePeakRange = usePricingStore((s) => s.deletePeakRange)
+
+  useEffect(() => {
+    if (!isLoaded) loadPricing()
+  }, [isLoaded, loadPricing])
 
   const [pricingModal, setPricingModal] = useState<{ open: boolean; rule: PricingRule | null }>({ open: false, rule: null })
   const [peakModal, setPeakModal]       = useState<{ open: boolean; peak: PeakHourRange | null }>({ open: false, peak: null })
 
-  function handleSavePricing(data: PricingForm) {
-    setRules((prev) => {
-      const existing = prev.find((r) => r.id === pricingModal.rule?.id)
-      if (existing) {
-        return prev.map((r) =>
-          r.id === existing.id ? { ...r, ...data, updatedAt: new Date().toISOString() } : r
-        )
-      }
-      return [...prev, { id: `pr-${Date.now()}`, ...data, updatedAt: new Date().toISOString() }]
-    })
-    setPricingModal({ open: false, rule: null })
-    toast.success('Đã cập nhật bảng giá')
+  async function handleSavePricing(data: PricingForm) {
+    try {
+      await saveRule(data, pricingModal.rule?.id)
+      setPricingModal({ open: false, rule: null })
+      toast.success('Đã cập nhật bảng giá')
+    } catch {
+      toast.error('Lưu bảng giá thất bại — vui lòng thử lại')
+    }
   }
 
-  function handleSavePeakHour(data: PeakHourForm) {
-    setPeakHours((prev) => {
-      const existing = prev.find((p) => p.id === peakModal.peak?.id)
-      if (existing) {
-        return prev.map((p) => p.id === existing.id ? { ...p, ...data } : p)
-      }
-      return [...prev, { id: `ph-${Date.now()}`, ...data, days: ['T2', 'T3', 'T4', 'T5', 'T6'] }]
-    })
-    setPeakModal({ open: false, peak: null })
-    toast.success('Đã cập nhật bảng giá')
+  async function handleSavePeakHour(data: PeakHourForm) {
+    try {
+      await savePeakRange({ id: peakModal.peak?.id, ...data })
+      setPeakModal({ open: false, peak: null })
+      toast.success('Đã cập nhật khung giờ cao điểm')
+    } catch {
+      toast.error('Lưu khung giờ thất bại — vui lòng thử lại')
+    }
   }
 
-  function deleteRule(id: string) {
-    setRules((prev) => prev.filter((r) => r.id !== id))
+  async function deleteRule(id: string) {
+    try {
+      await deletePricingRule(id)
+      toast.success('Đã xóa mức giá')
+    } catch {
+      toast.error('Xóa mức giá thất bại')
+    }
   }
 
-  function deletePeakHour(id: string) {
-    setPeakHours((prev) => prev.filter((p) => p.id !== id))
+  async function deletePeakHour(id: string) {
+    try {
+      await deletePeakRange(id)
+      toast.success('Đã xóa khung giờ')
+    } catch {
+      toast.error('Xóa khung giờ thất bại')
+    }
   }
 
   return (
@@ -386,15 +400,4 @@ export default function PricingManagement() {
       <PricingModal
         open={pricingModal.open}
         rule={pricingModal.rule}
-        onClose={() => setPricingModal({ open: false, rule: null })}
-        onSave={handleSavePricing}
-      />
-      <PeakHourModal
-        open={peakModal.open}
-        peak={peakModal.peak}
-        onClose={() => setPeakModal({ open: false, peak: null })}
-        onSave={handleSavePeakHour}
-      />
-    </PageWrapper>
-  )
-}
+        onClose={() => setPricingM

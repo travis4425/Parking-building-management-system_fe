@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { QRCodeCanvas } from 'qrcode.react'
 import {
   MapPin, Clock, CheckCircle2, XCircle, Car,
-  Bike, Truck, Layers, TrendingUp, Info, RefreshCw,
+  Bike, Layers, TrendingUp, Info, RefreshCw,
 } from 'lucide-react'
 import { useSlotStore } from '@/store/slotStore'
 import { useSessionStore } from '@/store/sessionStore'
@@ -21,22 +21,23 @@ const PARKING_INFO = {
   closeLabel: '23:00',
   totalSlots: 72,
   floors: [
-    { floor: 1, zone: 'A', label: 'Tầng 1 (Khu A)',  vehicleLabel: 'Xe máy'  },
-    { floor: 2, zone: 'B', label: 'Tầng 2 (Khu B)',  vehicleLabel: 'Ô tô'    },
-    { floor: 3, zone: 'C', label: 'Tầng 3 (Khu C)',  vehicleLabel: 'Ô tô'    },
+    { floor: -1, zone: 'B1', label: 'Hầm B1', vehicleLabel: 'Xe máy / Xe đạp' },
+    { floor: 1,  zone: '1',  label: 'Tầng 1', vehicleLabel: 'Ô tô' },
+    { floor: 2,  zone: '2',  label: 'Tầng 2', vehicleLabel: 'Ô tô' },
+    { floor: 3,  zone: '3',  label: 'Tầng 3', vehicleLabel: 'Ô tô' },
   ],
 }
 
 const VEHICLE_ICONS: Record<string, React.ElementType> = {
   motorbike: Bike,
+  bicycle:   Bike,
   car:       Car,
-  truck:     Truck,
 }
 
 const VEHICLE_LABELS: Record<string, string> = {
   motorbike: 'Xe máy',
+  bicycle:   'Xe đạp',
   car:       'Ô tô',
-  truck:     'Xe tải',
 }
 
 function fmt(n: number) {

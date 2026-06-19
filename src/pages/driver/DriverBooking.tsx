@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { QRCodeCanvas } from 'qrcode.react'
 import {
-  CalendarDays, Clock, Car, Bike, Truck, CheckCircle,
+  CalendarDays, Clock, Car, Bike, CheckCircle,
   MapPin, Info, Shuffle, X, AlertCircle, ChevronRight,
   Home as HomeIcon,
 } from 'lucide-react'
@@ -16,15 +16,16 @@ import type { ParkingSession, VehicleType, Reservation } from '@/utils/types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const VEHICLE_OPTS: { val: VehicleType; label: string; icon: React.ElementType; desc: string }[] = [
-  { val: 'motorbike', label: 'Xe máy',     icon: Bike,  desc: 'Tầng 1 · Khu A' },
-  { val: 'car',       label: 'Ô tô',       icon: Car,   desc: 'Tầng 2-3 · Khu B-C' },
-  { val: 'truck',     label: 'Xe tải nhỏ', icon: Truck, desc: 'Tầng 2-3 · Khu B-C' },
+  { val: 'motorbike', label: 'Xe máy', icon: Bike, desc: 'Hầm B1 · Xe 2 bánh' },
+  { val: 'bicycle',   label: 'Xe đạp', icon: Bike, desc: 'Hầm B1 · Xe 2 bánh' },
+  { val: 'car',       label: 'Ô tô',   icon: Car,  desc: 'Tầng 1-3 · Ô tô' },
 ]
 
 const FLOOR_LABELS: Record<number, string> = {
-  1: 'Tầng 1 · Khu A · Xe máy',
-  2: 'Tầng 2 · Khu B · Ô tô',
-  3: 'Tầng 3 · Khu C · Ô tô',
+  [-1]: 'Hầm B1 · Xe máy / Xe đạp',
+  1: 'Tầng 1 · Ô tô',
+  2: 'Tầng 2 · Ô tô',
+  3: 'Tầng 3 · Ô tô',
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -93,8 +94,7 @@ export default function DriverBooking() {
   }, [])
 
   // ── Derived ────────────────────────────────────────────────────────────────
-  // Xe tải dùng chung slot với ô tô (không có slot riêng trong mock data)
-  const slotVehicleType: VehicleType = vehicleType === 'truck' ? 'car' : vehicleType
+  const slotVehicleType: VehicleType = vehicleType
 
   const availableSlots = useMemo(
     () => slots.filter((s) => s.vehicleType === slotVehicleType && s.status === 'available'),
@@ -465,9 +465,6 @@ export default function DriverBooking() {
               <div className="text-center py-8 text-gray-400">
                 <MapPin className="w-10 h-10 mx-auto mb-2 opacity-20" />
                 <p className="text-sm">Không có slot trống cho {vehicleLabel(vehicleType)}</p>
-                {vehicleType === 'truck' && (
-                  <p className="text-xs mt-1 text-gray-400">Xe tải dùng slot ô tô — liên hệ nhân viên nếu cần hỗ trợ</p>
-                )}
               </div>
             ) : (
               <div className="space-y-4">

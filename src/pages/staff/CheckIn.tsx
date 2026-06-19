@@ -9,7 +9,6 @@ import PageWrapper from '@/components/layout/PageWrapper'
 import LPRCamera from '@/components/staff/LPRCamera'
 import { useSlotStore } from '@/store/slotStore'
 import { useSessionStore } from '@/store/sessionStore'
-import { useAuthStore } from '@/store/authStore'
 import { toast } from 'sonner'
 import { suggestSlot, type SlotSuggestion } from '@/ai/slotSuggestion'
 import { useIotStore } from '@/store/iotStore'
@@ -18,9 +17,9 @@ import { ENTRY_GATES } from '@/api/mockLPR'
 import type { VehicleType, ParkingSession } from '@/utils/types'
 
 const VEHICLE_OPTIONS: { value: VehicleType; label: string; icon: string }[] = [
-  { value: 'motorbike', label: 'Xe máy',    icon: '🛵' },
-  { value: 'car',       label: 'Ô tô',      icon: '🚗' },
-  { value: 'truck',     label: 'Xe tải nhỏ', icon: '🚚' },
+  { value: 'motorbike', label: 'Xe máy', icon: '🛵' },
+  { value: 'bicycle',   label: 'Xe đạp', icon: '🚲' },
+  { value: 'car',       label: 'Ô tô',   icon: '🚗' },
 ]
 
 // ─── Component modal xác nhận + in QR ──────────────────────────────────────
@@ -169,10 +168,10 @@ function InfoRow({ label, value, mono }: { label: string; value: string; mono?: 
 
 // ─── Main page ──────────────────────────────────────────────────────────────
 export default function CheckIn() {
-  const slots        = useSlotStore((s) => s.slots)
-  const updateSlot   = useSlotStore((s) => s.updateSlotStatus)
-  const addSession   = useSessionStore((s) => s.addSession)
-  const { user }     = useAuthStore()
+  const slots          = useSlotStore((s) => s.slots)
+  const updateSlot     = useSlotStore((s) => s.updateSlotStatus)
+  const checkInSession = useSessionStore((s) => s.checkInSession)
+  const [submitting,  setSubmitting]  = useState(false)
 
   // Form state
   const [plate,       setPlate]       = useState('')
@@ -229,7 +228,7 @@ export default function CheckIn() {
     }
   }
 
-  function handleCreateSession() {
+  async function handleCreateSession() {
     setSubmitError('')
 
     if (!plate.trim()) {
@@ -251,30 +250,29 @@ export default function CheckIn() {
       return
     }
 
-    const newSession: ParkingSession = {
-      id:             crypto.randomUUID(),
-      slotId:         targetSlot.id,
-      slotCode:       targetSlot.code,
-      vehiclePlate:   plate.trim().toUpperCase(),
-      vehicleType,
-      staffCheckInId: user?.id ?? 'staff-unknown',
-      checkInTime:    new Date().toISOString(),
-      status:         'active',
-      qrCode:         crypto.randomUUID(),
-      entryGate,
-      notes:          notes.trim() || undefined,
+    setSubmitting(true)
+    try {
+      const newSession = await checkInSession({
+        slotId:       targetSlot.id,
+        licensePlate: plate.trim().toUpperCase(),
+        vehicleType,
+      })
+
+      updateSlot(targetSlot.id, 'occupied')
+
+      // Mở barrier cổng A khi xe vào, tự đóng sau 4 giây (simulate IoT)
+      useIotStore.getState().openBarrier('A')
+      setTimeout(() => useIotStore.getState().closeBarrier('A'), 4000)
+
+      toast.success(`Tạo lượt gửi xe thành công! Mã: #${newSession.id.slice(0, 8).toUpperCase()}`)
+      setSession(newSession)
+      setModalOpen(true)
+    } catch (err) {
+      console.error('Check-in thất bại:', err)
+      setSubmitError('Không thể tạo lượt gửi xe — vui lòng thử lại.')
+    } finally {
+      setSubmitting(false)
     }
-
-    addSession(newSession)
-    updateSlot(targetSlot.id, 'occupied')
-
-    // Mở barrier cổng A khi xe vào, tự đóng sau 4 giây (simulate IoT)
-    useIotStore.getState().openBarrier('A')
-    setTimeout(() => useIotStore.getState().closeBarrier('A'), 4000)
-
-    toast.success(`Tạo lượt gửi xe thành công! Mã: #${newSession.id.slice(0, 8).toUpperCase()}`)
-    setSession(newSession)
-    setModalOpen(true)
   }
 
   function handleReset() {
@@ -527,12 +525,13 @@ export default function CheckIn() {
           {/* Nút tạo session */}
           <button
             onClick={handleCreateSession}
+            disabled={submitting}
             className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700
                        text-white font-semibold text-base shadow-sm transition-colors
-                       flex items-center justify-center gap-2"
+                       flex items-center justify-center gap-2 disabled:opacity-60"
           >
             <CheckCircle className="w-5 h-5" />
-            Tạo session &amp; In QR
+            {submitting ? 'Đang tạo...' : 'Tạo session & In QR'}
           </button>
         </div>
       </div>
@@ -548,3 +547,4 @@ export default function CheckIn() {
     </PageWrapper>
   )
 }
+           

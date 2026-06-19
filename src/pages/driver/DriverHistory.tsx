@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { QRCodeCanvas } from 'qrcode.react'
 import {
-  History, Bike, Car, Truck, CalendarDays, Clock,
+  History, Bike, Car, CalendarDays, Clock,
   CheckCircle2, X, Printer, ChevronLeft,
   ChevronRight, Search, Filter,
 } from 'lucide-react'
@@ -20,13 +20,13 @@ type FilterPeriod = '7d' | '30d' | 'custom'
 function fmt(n: number) { return new Intl.NumberFormat('vi-VN').format(n) + ' ₫' }
 
 function vehicleLabel(t: VehicleType) {
-  return t === 'motorbike' ? 'Xe máy' : t === 'car' ? 'Ô tô' : 'Xe tải'
+  return t === 'motorbike' ? 'Xe máy' : t === 'car' ? 'Ô tô' : 'Xe đạp'
 }
 
 const VehicleIcon: Record<VehicleType, React.ElementType> = {
   motorbike: Bike,
+  bicycle:   Bike,
   car:       Car,
-  truck:     Truck,
 }
 
 function fmtDate(iso: string) {

@@ -27,7 +27,7 @@ function fmt(n: number) {
 const VEHICLE_LABELS: Record<string, string> = {
   motorbike: 'Xe máy',
   car:       'Ô tô',
-  truck:     'Xe tải nhỏ',
+  bicycle:   'Xe đạp',
 }
 
 function generateReceiptNo(sessionId: string) {
