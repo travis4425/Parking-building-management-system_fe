@@ -17,13 +17,16 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
-// Tự động logout khi token hết hạn / không hợp lệ
+// Lưu ý: KHÔNG tự động logout toàn cục khi gặp 401.
+// Lý do: nhiều trang gọi đồng thời nhiều API nền (slots, sessions, alerts, pricing...)
+// ngay sau khi đăng nhập — nếu chỉ 1 API phụ bị lỗi 401 (BE chưa deploy đủ route,
+// token tạm thời lỗi, v.v.) thì cả phiên đăng nhập hợp lệ cũng bị đá ra ngoài,
+// gây cảm giác "vừa đăng nhập xong đã bị out". Để mỗi nơi gọi API tự xử lý lỗi
+// 401 của riêng nó (hiển thị thông báo / yêu cầu đăng nhập lại khi cần), thay vì
+// xóa session toàn cục từ một request nền không liên quan.
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error?.response?.status === 401) {
-      useAuthStore.getState().logout()
-    }
     return Promise.reject(error)
   }
 )
