@@ -290,7 +290,7 @@ export default function CheckIn() {
   function handleReset() {
     setPlate('')
     setVehicleType('motorbike')
-    setEntryGate(ENTRY_GATES[0].value)
+    setEntryGate(gates[0]?.id ?? '')
     setNotes('')
     setAiSuggestion(null)
     setAiError(false)
