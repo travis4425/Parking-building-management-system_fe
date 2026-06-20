@@ -173,4 +173,25 @@ export default function ManagerDashboard() {
         <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2.5">
           {[
             { label: 'Trống',      value: stats.available,   color: 'bg-emerald-400' },
-            { label: 'Có xe',     value: stats.occupied,    color
+            { label: 'Có xe',     value: stats.occupied,    color: 'bg-red-500'     },
+            { label: 'Đặt trước', value: stats.reserved,    color: 'bg-yellow-400'  },
+            { label: 'Bảo trì',   value: stats.maintenance, color: 'bg-gray-300'    },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="flex items-center gap-1.5 text-xs text-gray-600">
+              <span className={cn('w-2.5 h-2.5 rounded-sm', color)} />
+              {label}: <span className="font-semibold">{value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── IoT Slot Grid ── */}
+      <SlotGrid
+        slots={slots}
+        lastUpdated={lastUpdated}
+        changedIds={changedIds}
+        floors={[1, 2, 3]}
+      />
+    </PageWrapper>
+  )
+}

@@ -542,4 +542,24 @@ export default function CheckIn() {
             onClick={handleCreateSession}
             disabled={submitting}
             className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700
-                       text-white font-semibold text-bas
+                       text-white font-semibold text-base shadow-sm transition-colors
+                       flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            <CheckCircle className="w-5 h-5" />
+            {submitting ? 'Đang tạo...' : 'Tạo session & In QR'}
+          </button>
+        </div>
+      </div>
+
+      {/* Modal xác nhận */}
+      {modalOpen && session && (
+        <SessionConfirmModal
+          session={session}
+          gateLabel={gates.find((g) => g.id === entryGate)?.name ?? ''}
+          onClose={() => setModalOpen(false)}
+          onReset={handleReset}
+        />
+      )}
+    </PageWrapper>
+  )
+}
