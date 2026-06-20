@@ -1,36 +1,46 @@
-// Trang audit log: nhật ký thao tác hệ thống — ai, làm gì, lúc nào, IP, trạng thái
-import { useState, useMemo } from 'react'
+// Trang audit log: nhật ký thao tác hệ thống — ai, làm gì, lúc nào, IP
+// Đã nối thật với BE (GET /api/admin/audit-logs) — BE không lưu trạng thái success/failed
+// (chỉ ghi log khi hành động thành công) nên bỏ cột "Trạng thái" so với bản mock cũ.
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import PageWrapper from '@/components/layout/PageWrapper'
-import { Search, ChevronLeft, ChevronRight, ChevronDown, Download } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, ChevronDown, Download, Loader2 } from 'lucide-react'
 import type { UserRole } from '@/utils/types'
+import { fetchAuditLogs, type BeAuditLog } from '@/api/adminUsersApi'
+import { fetchUsers } from '@/api/adminUsersApi'
 
 interface AuditEntry {
   id: string
   timestamp: string
   userId: string
   userName: string
-  userRole: UserRole
+  userRole: UserRole | null
   action: string
   actionLabel: string
   target: string
   detail: string
   ip: string
-  status: 'success' | 'failed'
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  LOGIN:                 'Đăng nhập',
+  LOGOUT:                'Đăng xuất',
+  REGISTER:              'Đăng ký tài khoản',
+  CHANGE_PASSWORD:       'Đổi mật khẩu',
+  CREATE:                'Tạo mới',
+  UPDATE:                'Cập nhật',
+  UPDATE_STATUS:         'Đổi trạng thái',
+  UPDATE_LICENSE_PLATE:  'Sửa biển số',
 }
 
 const ACTION_COLORS: Record<string, string> = {
-  LOGIN:              'bg-blue-100 text-blue-700',
-  LOGOUT:             'bg-gray-100 text-gray-600',
-  CHECKIN:            'bg-green-100 text-green-700',
-  CHECKOUT:           'bg-teal-100 text-teal-700',
-  COLLECT_PAYMENT:    'bg-yellow-100 text-yellow-700',
-  UPDATE_PRICE:       'bg-orange-100 text-orange-700',
-  ADD_USER:           'bg-purple-100 text-purple-700',
-  LOCK_USER:          'bg-red-100 text-red-700',
-  UNLOCK_USER:        'bg-green-100 text-green-700',
-  UPDATE_SLOT:        'bg-indigo-100 text-indigo-700',
-  RESOLVE_EXCEPTION:  'bg-pink-100 text-pink-700',
-  EXPORT_REPORT:      'bg-cyan-100 text-cyan-700',
+  LOGIN:                'bg-blue-100 text-blue-700',
+  LOGOUT:               'bg-gray-100 text-gray-600',
+  REGISTER:             'bg-purple-100 text-purple-700',
+  CHANGE_PASSWORD:      'bg-yellow-100 text-yellow-700',
+  CREATE:               'bg-green-100 text-green-700',
+  UPDATE:               'bg-indigo-100 text-indigo-700',
+  UPDATE_STATUS:        'bg-orange-100 text-orange-700',
+  UPDATE_LICENSE_PLATE: 'bg-pink-100 text-pink-700',
 }
 
 const ROLE_COLOR: Record<UserRole, string> = {
@@ -40,82 +50,92 @@ const ROLE_COLOR: Record<UserRole, string> = {
   driver:  'text-orange-700',
 }
 
-function pastTs(daysAgo: number, hour: number, minute = 0): string {
-  const d = new Date()
-  d.setDate(d.getDate() - daysAgo)
-  d.setHours(hour, minute, 0, 0)
-  return d.toISOString()
-}
-
-const MOCK_LOGS: AuditEntry[] = [
-  { id: 'log-001', timestamp: pastTs(0, 8, 5),  userId: 'u001', userName: 'admin01',   userRole: 'admin',   action: 'LOGIN',             actionLabel: 'Đăng nhập',          target: 'Hệ thống',          detail: 'Đăng nhập thành công từ trình duyệt Chrome',                        ip: '192.168.1.100', status: 'success' },
-  { id: 'log-002', timestamp: pastTs(0, 8, 12), userId: 'u001', userName: 'admin01',   userRole: 'admin',   action: 'ADD_USER',          actionLabel: 'Thêm tài khoản',     target: 'staff04',           detail: 'Tạo tài khoản nhân viên mới: Nguyễn Thị Dung',                      ip: '192.168.1.100', status: 'success' },
-  { id: 'log-003', timestamp: pastTs(0, 8, 30), userId: 'u002', userName: 'manager01', userRole: 'manager', action: 'LOGIN',             actionLabel: 'Đăng nhập',          target: 'Hệ thống',          detail: 'Đăng nhập thành công',                                               ip: '192.168.1.105', status: 'success' },
-  { id: 'log-004', timestamp: pastTs(0, 8, 45), userId: 'u002', userName: 'manager01', userRole: 'manager', action: 'UPDATE_PRICE',      actionLabel: 'Cập nhật giá',       target: 'Xe máy',            detail: 'Đổi giá thường: 5.000 → 6.000 VND/h',                               ip: '192.168.1.105', status: 'success' },
-  { id: 'log-005', timestamp: pastTs(0, 9, 0),  userId: 'u005', userName: 'staff01',   userRole: 'staff',   action: 'LOGIN',             actionLabel: 'Đăng nhập',          target: 'Hệ thống',          detail: 'Đăng nhập thành công',                                               ip: '10.0.0.12',     status: 'success' },
-  { id: 'log-006', timestamp: pastTs(0, 9, 3),  userId: 'u005', userName: 'staff01',   userRole: 'staff',   action: 'CHECKIN',           actionLabel: 'Xe vào',             target: '51G-12345',         detail: 'Check-in xe máy, slot A-03, cổng gate-1',                            ip: '10.0.0.12',     status: 'success' },
-  { id: 'log-007', timestamp: pastTs(0, 9, 15), userId: 'u005', userName: 'staff01',   userRole: 'staff',   action: 'CHECKIN',           actionLabel: 'Xe vào',             target: '30A-56789',         detail: 'Check-in ô tô, slot B-05, cổng gate-1',                              ip: '10.0.0.12',     status: 'success' },
-  { id: 'log-008', timestamp: pastTs(0, 10, 0), userId: 'u005', userName: 'staff01',   userRole: 'staff',   action: 'CHECKOUT',          actionLabel: 'Xe ra',              target: '51G-12345',         detail: 'Check-out xe máy A-03, phí 10.000 VND',                              ip: '10.0.0.12',     status: 'success' },
-  { id: 'log-009', timestamp: pastTs(0, 10, 5), userId: 'u005', userName: 'staff01',   userRole: 'staff',   action: 'COLLECT_PAYMENT',   actionLabel: 'Thu phí',            target: 'INV-20260601-0001', detail: 'Thanh toán QR 30.000 VND, biển 30A-56789',                           ip: '10.0.0.12',     status: 'success' },
-  { id: 'log-010', timestamp: pastTs(0, 11, 0), userId: 'u001', userName: 'admin01',   userRole: 'admin',   action: 'LOCK_USER',         actionLabel: 'Khóa tài khoản',     target: 'manager02',         detail: 'Khóa tài khoản manager02 theo yêu cầu HR',                           ip: '192.168.1.100', status: 'success' },
-  { id: 'log-011', timestamp: pastTs(0, 11, 30),userId: 'u006', userName: 'staff02',   userRole: 'staff',   action: 'RESOLVE_EXCEPTION', actionLabel: 'Xử lý ngoại lệ',    target: '92H-99001',         detail: 'Giải quyết xe quá hạn 25h, thu phí ngoại lệ 150.000 VND',           ip: '10.0.0.15',     status: 'success' },
-  { id: 'log-012', timestamp: pastTs(0, 13, 0), userId: 'u002', userName: 'manager01', userRole: 'manager', action: 'EXPORT_REPORT',     actionLabel: 'Xuất báo cáo',       target: 'Doanh thu T5/2026', detail: 'Xuất Excel báo cáo doanh thu tháng 5/2026',                          ip: '192.168.1.105', status: 'success' },
-  { id: 'log-013', timestamp: pastTs(0, 14, 0), userId: 'u005', userName: 'staff01',   userRole: 'staff',   action: 'CHECKIN',           actionLabel: 'Xe vào',             target: '43C-77001',         detail: 'Check-in xe máy, slot B-04, cổng gate-1',                            ip: '10.0.0.12',     status: 'success' },
-  { id: 'log-014', timestamp: pastTs(0, 14, 5), userId: 'u006', userName: 'staff02',   userRole: 'staff',   action: 'CHECKIN',           actionLabel: 'Xe vào',             target: '99A-11223',         detail: 'Thử check-in xe tải — biển số không hợp lệ định dạng',               ip: '10.0.0.15',     status: 'failed'  },
-  { id: 'log-015', timestamp: pastTs(1, 9, 0),  userId: 'u002', userName: 'manager01', userRole: 'manager', action: 'UPDATE_SLOT',       actionLabel: 'Cập nhật slot',      target: 'C-12',              detail: 'Chuyển slot C-12 sang trạng thái bảo trì (sensor lỗi)',              ip: '192.168.1.105', status: 'success' },
-  { id: 'log-016', timestamp: pastTs(1, 10, 0), userId: 'u005', userName: 'staff01',   userRole: 'staff',   action: 'RESOLVE_EXCEPTION', actionLabel: 'Xử lý ngoại lệ',    target: '51G-99999',         detail: 'Mất thẻ QR: check-out thủ công bằng biển số',                        ip: '10.0.0.12',     status: 'success' },
-  { id: 'log-017', timestamp: pastTs(1, 17, 0), userId: 'u001', userName: 'admin01',   userRole: 'admin',   action: 'UNLOCK_USER',       actionLabel: 'Mở khóa tài khoản', target: 'staff03',           detail: 'Mở khóa tài khoản staff03 sau xác minh',                            ip: '192.168.1.100', status: 'success' },
-  { id: 'log-018', timestamp: pastTs(2, 8, 0),  userId: 'u002', userName: 'manager01', userRole: 'manager', action: 'LOGIN',             actionLabel: 'Đăng nhập',          target: 'Hệ thống',          detail: 'Đăng nhập thất bại — sai mật khẩu',                                 ip: '192.168.1.107', status: 'failed'  },
-  { id: 'log-019', timestamp: pastTs(2, 8, 2),  userId: 'u002', userName: 'manager01', userRole: 'manager', action: 'LOGIN',             actionLabel: 'Đăng nhập',          target: 'Hệ thống',          detail: 'Đăng nhập thành công',                                               ip: '192.168.1.105', status: 'success' },
-  { id: 'log-020', timestamp: pastTs(3, 16, 0), userId: 'u001', userName: 'admin01',   userRole: 'admin',   action: 'UPDATE_PRICE',      actionLabel: 'Cập nhật giá',       target: 'Ô tô',              detail: 'Cập nhật giá ô tô cao điểm: 25.000 → 30.000 VND/h',                ip: '192.168.1.100', status: 'success' },
-]
-
 const PAGE_SIZE = 10
 
 const ACTION_OPTIONS = [
-  { value: 'all',               label: 'Tất cả hành động' },
-  { value: 'LOGIN',             label: 'Đăng nhập / Đăng xuất' },
-  { value: 'CHECKIN',           label: 'Xe vào' },
-  { value: 'CHECKOUT',          label: 'Xe ra' },
-  { value: 'COLLECT_PAYMENT',   label: 'Thu phí' },
-  { value: 'UPDATE_PRICE',      label: 'Cập nhật giá' },
-  { value: 'ADD_USER',          label: 'Thêm tài khoản' },
-  { value: 'LOCK_USER',         label: 'Khóa / Mở khóa' },
-  { value: 'UPDATE_SLOT',       label: 'Cập nhật slot' },
-  { value: 'RESOLVE_EXCEPTION', label: 'Xử lý ngoại lệ' },
-  { value: 'EXPORT_REPORT',     label: 'Xuất báo cáo' },
+  { value: 'all',                  label: 'Tất cả hành động' },
+  { value: 'LOGIN',                label: 'Đăng nhập' },
+  { value: 'LOGOUT',               label: 'Đăng xuất' },
+  { value: 'REGISTER',             label: 'Đăng ký tài khoản' },
+  { value: 'CHANGE_PASSWORD',      label: 'Đổi mật khẩu' },
+  { value: 'CREATE',               label: 'Tạo mới' },
+  { value: 'UPDATE',               label: 'Cập nhật' },
+  { value: 'UPDATE_STATUS',        label: 'Đổi trạng thái' },
+  { value: 'UPDATE_LICENSE_PLATE', label: 'Sửa biển số' },
 ]
 
+function mapBeLog(log: BeAuditLog, userMap: Map<string, { name: string; role: UserRole }>): AuditEntry {
+  const u = userMap.get(log.userId)
+  const detailParts: string[] = []
+  if (log.oldData) detailParts.push(`Trước: ${log.oldData}`)
+  if (log.newData) detailParts.push(`Sau: ${log.newData}`)
+
+  return {
+    id: log.id,
+    timestamp: log.createdAt,
+    userId: log.userId,
+    userName: u?.name ?? log.userId,
+    userRole: u?.role ?? null,
+    action: log.action,
+    actionLabel: ACTION_LABELS[log.action] ?? log.action,
+    target: log.resource + (log.resourceId ? ` #${log.resourceId.slice(0, 8)}` : ''),
+    detail: detailParts.join(' · ') || '—',
+    ip: log.ipAddress ?? '—',
+  }
+}
+
 export default function AdminAuditLog() {
+  const [logs, setLogs]             = useState<AuditEntry[]>([])
+  const [loading, setLoading]       = useState(true)
   const [search, setSearch]         = useState('')
   const [filterAction, setFilterAction] = useState('all')
   const [filterPeriod, setFilterPeriod] = useState<'1d' | '7d' | '30d'>('7d')
   const [page, setPage]             = useState(1)
-  const [now]                       = useState(() => Date.now())
+
+  const loadLogs = useCallback(async (period: '1d' | '7d' | '30d') => {
+    setLoading(true)
+    try {
+      const days = period === '1d' ? 1 : period === '7d' ? 7 : 30
+      const startDate = new Date(Date.now() - days * 86_400_000).toISOString()
+
+      const [{ data: rawLogs }, { data: users }] = await Promise.all([
+        fetchAuditLogs({ startDate, limit: 500 }),
+        fetchUsers({ limit: 200 }),
+      ])
+
+      const userMap = new Map(
+        users.map((u) => [u.id, { name: u.fullName ?? u.email, role: u.role.toLowerCase() as UserRole }])
+      )
+      setLogs(rawLogs.map((l) => mapBeLog(l, userMap)))
+    } catch (err) {
+      console.error('Lỗi tải audit log:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadLogs(filterPeriod) }, [filterPeriod, loadLogs])
 
   const filtered = useMemo(() => {
-    const q   = search.toLowerCase()
-    const periodMs = filterPeriod === '1d' ? 86_400_000 : filterPeriod === '7d' ? 7 * 86_400_000 : 30 * 86_400_000
-
-    return MOCK_LOGS
+    const q = search.toLowerCase()
+    return logs
       .filter(log => {
         const matchQ      = !q || log.userName.toLowerCase().includes(q) || log.target.toLowerCase().includes(q) || log.detail.toLowerCase().includes(q)
-        const matchAction = filterAction === 'all' || log.action === filterAction || (filterAction === 'LOGIN' && log.action === 'LOGOUT')
-        const matchPeriod = now - new Date(log.timestamp).getTime() <= periodMs
-        return matchQ && matchAction && matchPeriod
+        const matchAction = filterAction === 'all' || log.action === filterAction
+        return matchQ && matchAction
       })
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-  }, [search, filterAction, filterPeriod, now])
+  }, [logs, search, filterAction])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paged      = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   function handleExport() {
-    const rows = ['Thời gian,Người dùng,Role,Hành động,Đối tượng,Chi tiết,IP,Trạng thái',
+    const rows = ['Thời gian,Người dùng,Role,Hành động,Đối tượng,Chi tiết,IP',
       ...filtered.map(l => [
         new Date(l.timestamp).toLocaleString('vi-VN'),
-        l.userName, l.userRole, l.actionLabel, l.target,
-        `"${l.detail}"`, l.ip, l.status === 'success' ? 'Thành công' : 'Thất bại'
+        l.userName, l.userRole ?? '', l.actionLabel, l.target,
+        `"${l.detail}"`, l.ip,
       ].join(','))
     ].join('\n')
     const blob = new Blob(['﻿' + rows], { type: 'text/csv;charset=utf-8;' })
@@ -173,7 +193,7 @@ export default function AdminAuditLog() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {['Thời gian', 'Người dùng', 'Hành động', 'Đối tượng', 'Chi tiết', 'IP', 'Trạng thái'].map(h => (
+                {['Thời gian', 'Người dùng', 'Hành động', 'Đối tượng', 'Chi tiết', 'IP'].map(h => (
                   <th key={h} className="px-4 py-3 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide whitespace-nowrap">
                     {h}
                   </th>
@@ -181,9 +201,15 @@ export default function AdminAuditLog() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {paged.length === 0 ? (
+              {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-14 text-center text-gray-400">Không có nhật ký nào trong khoảng thời gian này</td>
+                  <td colSpan={6} className="py-14 text-center text-gray-400">
+                    <Loader2 className="w-5 h-5 animate-spin inline mr-2" /> Đang tải nhật ký...
+                  </td>
+                </tr>
+              ) : paged.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-14 text-center text-gray-400">Không có nhật ký nào trong khoảng thời gian này</td>
                 </tr>
               ) : paged.map(log => (
                 <tr key={log.id} className="hover:bg-gray-50 transition-colors">
@@ -192,7 +218,7 @@ export default function AdminAuditLog() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-gray-800 text-xs">{log.userName}</div>
-                    <div className={`text-xs ${ROLE_COLOR[log.userRole]}`}>{log.userRole}</div>
+                    {log.userRole && <div className={`text-xs ${ROLE_COLOR[log.userRole]}`}>{log.userRole}</div>}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ACTION_COLORS[log.action] ?? 'bg-gray-100 text-gray-700'}`}>
@@ -204,11 +230,6 @@ export default function AdminAuditLog() {
                     <span className="line-clamp-2">{log.detail}</span>
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-gray-500 whitespace-nowrap">{log.ip}</td>
-                  <td className="px-4 py-3">
-                    {log.status === 'success'
-                      ? <span className="text-green-600 text-xs font-medium">✓ Thành công</span>
-                      : <span className="text-red-500  text-xs font-medium">✗ Thất bại</span>}
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -235,3 +256,4 @@ export default function AdminAuditLog() {
     </PageWrapper>
   )
 }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    

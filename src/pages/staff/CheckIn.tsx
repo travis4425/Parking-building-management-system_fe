@@ -13,7 +13,7 @@ import { toast } from 'sonner'
 import { suggestSlot, type SlotSuggestion } from '@/ai/slotSuggestion'
 import { useIotStore } from '@/store/iotStore'
 import { generateToken } from '@/utils/qrToken'
-import { ENTRY_GATES } from '@/api/mockLPR'
+import { fetchEntryGates, type BeGate } from '@/api/gatesApi'
 import type { VehicleType, ParkingSession } from '@/utils/types'
 
 const VEHICLE_OPTIONS: { value: VehicleType; label: string; icon: string }[] = [
@@ -25,10 +25,12 @@ const VEHICLE_OPTIONS: { value: VehicleType; label: string; icon: string }[] = [
 // ─── Component modal xác nhận + in QR ──────────────────────────────────────
 function SessionConfirmModal({
   session,
+  gateLabel,
   onClose,
   onReset,
 }: {
   session: ParkingSession
+  gateLabel: string
   onClose: () => void
   onReset: () => void
 }) {
@@ -36,8 +38,6 @@ function SessionConfirmModal({
 
   const vehicleLabel =
     VEHICLE_OPTIONS.find((v) => v.value === session.vehicleType)?.label ?? session.vehicleType
-  const gateLabel =
-    ENTRY_GATES.find((g) => g.value === session.entryGate)?.label ?? session.entryGate ?? ''
 
   // In QR bằng cách mở cửa sổ mới với HTML tĩnh + dataURL từ canvas
   function handlePrint() {
@@ -176,8 +176,19 @@ export default function CheckIn() {
   // Form state
   const [plate,       setPlate]       = useState('')
   const [vehicleType, setVehicleType] = useState<VehicleType>('motorbike')
-  const [entryGate,   setEntryGate]   = useState(ENTRY_GATES[0].value)
+  const [gates,       setGates]       = useState<BeGate[]>([])
+  const [entryGate,   setEntryGate]   = useState('')
   const [notes,       setNotes]       = useState('')
+
+  // Tải danh sách cổng vào thật từ BE (GET /api/gates)
+  useEffect(() => {
+    fetchEntryGates()
+      .then((list) => {
+        setGates(list)
+        if (list.length > 0) setEntryGate(list[0].id)
+      })
+      .catch((err) => console.error('Lỗi tải danh sách cổng vào:', err))
+  }, [])
 
   // AI suggestion state
   const [aiLoading,    setAiLoading]    = useState(false)
@@ -256,6 +267,7 @@ export default function CheckIn() {
         slotId:       targetSlot.id,
         licensePlate: plate.trim().toUpperCase(),
         vehicleType,
+        gateInId:     entryGate || undefined,
       })
 
       updateSlot(targetSlot.id, 'occupied')
@@ -352,11 +364,14 @@ export default function CheckIn() {
                 <select
                   value={entryGate}
                   onChange={(e) => setEntryGate(e.target.value)}
+                  disabled={gates.length === 0}
                   className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-300 bg-white
-                             focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                             focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
+                             disabled:bg-gray-50 disabled:text-gray-400"
                 >
-                  {ENTRY_GATES.map((g) => (
-                    <option key={g.value} value={g.value}>{g.label}</option>
+                  {gates.length === 0 && <option>Đang tải danh sách cổng...</option>}
+                  {gates.map((g) => (
+                    <option key={g.id} value={g.id}>{g.name}</option>
                   ))}
                 </select>
               </div>
@@ -527,23 +542,4 @@ export default function CheckIn() {
             onClick={handleCreateSession}
             disabled={submitting}
             className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700
-                       text-white font-semibold text-base shadow-sm transition-colors
-                       flex items-center justify-center gap-2 disabled:opacity-60"
-          >
-            <CheckCircle className="w-5 h-5" />
-            {submitting ? 'Đang tạo...' : 'Tạo session & In QR'}
-          </button>
-        </div>
-      </div>
-
-      {/* Modal xác nhận */}
-      {modalOpen && session && (
-        <SessionConfirmModal
-          session={session}
-          onClose={() => setModalOpen(false)}
-          onReset={handleReset}
-        />
-      )}
-    </PageWrapper>
-  )
-}
+                       text-white font-semibold text-bas

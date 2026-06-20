@@ -6,9 +6,10 @@ import type { User, UserRole } from '@/utils/types'
 interface AuthStore {
   user: User | null
   token: string | null
+  refreshToken: string | null
   isAuthenticated: boolean
 
-  login: (user: User, token: string, rememberMe?: boolean) => void
+  login: (user: User, token: string, refreshToken?: string, rememberMe?: boolean) => void
   logout: () => void
   updateUser: (partial: Partial<User>) => void
 }
@@ -27,17 +28,18 @@ export const useAuthStore = create<AuthStore>()(
     (set) => ({
       user: null,
       token: null,
+      refreshToken: null,
       isAuthenticated: false,
 
-      login: (user, token, rememberMe = false) => {
+      login: (user, token, refreshToken, rememberMe = false) => {
         // Ghi nhớ preference trước khi lưu state
         localStorage.setItem(REMEMBER_KEY, String(rememberMe))
-        set({ user, token, isAuthenticated: true })
+        set({ user, token, refreshToken: refreshToken ?? null, isAuthenticated: true })
       },
 
       logout: () => {
         localStorage.removeItem(REMEMBER_KEY)
-        set({ user: null, token: null, isAuthenticated: false })
+        set({ user: null, token: null, refreshToken: null, isAuthenticated: false })
       },
 
       updateUser: (partial) =>

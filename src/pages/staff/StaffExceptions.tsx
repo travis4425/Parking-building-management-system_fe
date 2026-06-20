@@ -7,7 +7,6 @@ import { useAlertStore } from '@/store/alertStore'
 import { useAuthStore } from '@/store/authStore'
 import { calculateFee, formatDuration, LOST_TICKET_SURCHARGE } from '@/utils/feeCalculator'
 import { reportLostTicketApi, reportWrongPlateApi } from '@/api/exceptionsApi'
-import { MOCK_CONTACT_MAP } from '@/api/mockSessions'
 import type { ParkingSession, ParkingAlert } from '@/utils/types'
 import { toast } from 'sonner'
 import {
@@ -659,29 +658,17 @@ export default function StaffExceptions() {
                 <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
                   <User className="w-8 h-8 text-blue-500" />
                 </div>
-                {(() => {
-                  const contact = MOCK_CONTACT_MAP[otContact.vehiclePlate]
-                  return contact ? (
-                    <>
-                      <p className="font-semibold text-gray-800 text-lg">{contact.name}</p>
-                      <p className="text-2xl font-bold text-blue-600 mt-2 font-mono tracking-wider">
-                        {contact.phone}
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-gray-500 text-sm">
-                        Biển số:{' '}
-                        <span className="font-mono font-semibold">{otContact.vehiclePlate}</span>
-                      </p>
-                      <p className="text-gray-400 text-xs mt-2">
-                        Không có thông tin liên hệ trong hệ thống
-                      </p>
-                      <p className="text-blue-600 font-bold text-xl mt-3 font-mono">1900 1234</p>
-                      <p className="text-xs text-gray-400 mt-1">Hotline thông báo xe quá hạn</p>
-                    </>
-                  )
-                })()}
+                {/* BE chưa lưu số điện thoại chủ xe cho phiên đỗ vãng lai (không đăng nhập) nên
+                    không có thông tin liên hệ thật để hiển thị — dùng hotline chung của bãi xe. */}
+                <p className="text-gray-500 text-sm">
+                  Biển số:{' '}
+                  <span className="font-mono font-semibold">{otContact.vehiclePlate}</span>
+                </p>
+                <p className="text-gray-400 text-xs mt-2">
+                  Không có thông tin liên hệ trong hệ thống
+                </p>
+                <p className="text-blue-600 font-bold text-xl mt-3 font-mono">1900 1234</p>
+                <p className="text-xs text-gray-400 mt-1">Hotline thông báo xe quá hạn</p>
                 <p className="mt-4 text-sm text-gray-500">
                   Xe đỗ tại <strong>Slot {otContact.slotCode}</strong> từ{' '}
                   {formatTime(otContact.checkInTime)}
@@ -796,3 +783,4 @@ export default function StaffExceptions() {
     )
   }
 }
+                                                                                                                                                                                                                                                                                                                                                                                                                                         

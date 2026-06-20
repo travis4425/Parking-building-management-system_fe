@@ -1,12 +1,17 @@
 // Trang quản lý tài khoản: bảng người dùng, filter, tìm kiếm, modal thêm mới, khóa/mở khóa
-import { useState, useMemo } from 'react'
+// Đã nối thật với BE (GET/POST /api/admin/users, PATCH .../status, PATCH .../role)
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import PageWrapper from '@/components/layout/PageWrapper'
 import {
   Search, Plus, Lock, Unlock, Eye, EyeOff, X,
-  UserCheck, UserX, ChevronDown,
+  UserCheck, UserX, ChevronDown, Loader2,
 } from 'lucide-react'
 import type { UserRole } from '@/utils/types'
+import {
+  fetchUsers, createUserApi, updateUserStatusApi,
+  type BeManagedUser, type BeUserStatus,
+} from '@/api/adminUsersApi'
 
 interface ManagedUser {
   id: string
@@ -29,24 +34,19 @@ const ROLE_COLOR: Record<UserRole, string> = {
   driver:  'bg-orange-100 text-orange-700',
 }
 
-function daysAgo(days: number, hour = 9): string {
-  const d = new Date()
-  d.setDate(d.getDate() - days)
-  d.setHours(hour, 0, 0, 0)
-  return d.toISOString()
+// BE chỉ có email/status uppercase — map sang shape FE đang dùng cho bảng
+function mapBeUser(u: BeManagedUser): ManagedUser {
+  return {
+    id: u.id,
+    username: u.email.split('@')[0],
+    name: u.fullName ?? u.email,
+    email: u.email,
+    role: u.role.toLowerCase() as UserRole,
+    status: u.status === 'ACTIVE' ? 'active' : 'locked',
+    createdAt: u.createdAt,
+    lastLogin: '—', // BE chưa track lastLogin riêng
+  }
 }
-
-const MOCK_USERS: ManagedUser[] = [
-  { id: 'u001', username: 'admin01',   name: 'Nguyễn Quản Trị',  email: 'admin@parking.vn',      role: 'admin',   status: 'active', createdAt: daysAgo(365), lastLogin: daysAgo(0, 8) },
-  { id: 'u002', username: 'manager01', name: 'Trần Văn Quản',    email: 'manager01@parking.vn',  role: 'manager', status: 'active', createdAt: daysAgo(300), lastLogin: daysAgo(1) },
-  { id: 'u004', username: 'manager02', name: 'Lê Thị Hương',     email: 'manager02@parking.vn',  role: 'manager', status: 'locked', createdAt: daysAgo(280), lastLogin: daysAgo(30) },
-  { id: 'u005', username: 'staff01',   name: 'Phạm Văn Nhân',    email: 'staff01@parking.vn',    role: 'staff',   status: 'active', createdAt: daysAgo(200), lastLogin: daysAgo(0) },
-  { id: 'u006', username: 'staff02',   name: 'Đỗ Thị Lan',       email: 'staff02@parking.vn',    role: 'staff',   status: 'active', createdAt: daysAgo(180), lastLogin: daysAgo(1) },
-  { id: 'u007', username: 'staff03',   name: 'Hoàng Văn Minh',   email: 'staff03@parking.vn',    role: 'staff',   status: 'locked', createdAt: daysAgo(150), lastLogin: daysAgo(60) },
-  { id: 'u003', username: 'driver01',  name: 'Nguyễn Tài Xế',    email: 'driver01@parking.vn',   role: 'driver',  status: 'active', createdAt: daysAgo(90),  lastLogin: daysAgo(0) },
-  { id: 'u008', username: 'driver02',  name: 'Bùi Thị Mai',      email: 'driver02@parking.vn',   role: 'driver',  status: 'active', createdAt: daysAgo(60),  lastLogin: daysAgo(2) },
-  { id: 'u009', username: 'driver03',  name: 'Vũ Đức Hùng',      email: 'driver03@parking.vn',   role: 'driver',  status: 'locked', createdAt: daysAgo(45),  lastLogin: daysAgo(20) },
-]
 
 interface UserForm {
   name: string; username: string; email: string
@@ -60,7 +60,8 @@ function fmtDate(iso: string) {
 }
 
 export default function AdminUsers() {
-  const [users, setUsers]         = useState<ManagedUser[]>(MOCK_USERS)
+  const [users, setUsers]         = useState<ManagedUser[]>([])
+  const [loading, setLoading]     = useState(true)
   const [search, setSearch]       = useState('')
   const [filterRole, setFilterRole]     = useState<UserRole | 'all'>('all')
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'locked'>('all')
@@ -68,6 +69,23 @@ export default function AdminUsers() {
   const [form, setForm]           = useState<UserForm>(FORM_INIT)
   const [showPwd, setShowPwd]     = useState(false)
   const [formErr, setFormErr]     = useState<Partial<Record<keyof UserForm, string>>>({})
+  const [submitting, setSubmitting] = useState(false)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
+
+  const loadUsers = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data } = await fetchUsers({ limit: 200 })
+      setUsers(data.map(mapBeUser))
+    } catch (err) {
+      console.error('Lỗi tải danh sách tài khoản:', err)
+      toast.error('Không tải được danh sách tài khoản')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadUsers() }, [loadUsers])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
@@ -85,15 +103,26 @@ export default function AdminUsers() {
     return c
   }, [users])
 
-  function toggleLock(id: string) {
+  async function toggleLock(id: string) {
     const target = users.find(u => u.id === id)
     if (!target) return
     const willLock = target.status === 'active'
-    setUsers(prev => prev.map(u =>
-      u.id === id ? { ...u, status: willLock ? 'locked' : 'active' } : u
-    ))
-    if (willLock) toast.warning(`Đã khóa tài khoản ${target.username}`)
-    else          toast.success(`Đã mở khóa tài khoản ${target.username}`)
+    const newStatus: BeUserStatus = willLock ? 'BLOCKED' : 'ACTIVE'
+
+    setTogglingId(id)
+    try {
+      await updateUserStatusApi(id, newStatus)
+      setUsers(prev => prev.map(u =>
+        u.id === id ? { ...u, status: willLock ? 'locked' : 'active' } : u
+      ))
+      if (willLock) toast.warning(`Đã khóa tài khoản ${target.username}`)
+      else          toast.success(`Đã mở khóa tài khoản ${target.username}`)
+    } catch (err) {
+      console.error('Lỗi đổi trạng thái tài khoản:', err)
+      toast.error('Không đổi được trạng thái tài khoản')
+    } finally {
+      setTogglingId(null)
+    }
   }
 
   function closeModal() {
@@ -106,29 +135,32 @@ export default function AdminUsers() {
   function validate(): boolean {
     const errs: Partial<Record<keyof UserForm, string>> = {}
     if (!form.name.trim())     errs.name     = 'Bắt buộc nhập họ tên'
-    if (!form.username.trim()) errs.username = 'Bắt buộc nhập username'
-    else if (users.some(u => u.username === form.username.trim())) errs.username = 'Username đã tồn tại'
     if (!form.email.trim())    errs.email    = 'Bắt buộc nhập email'
+    else if (users.some(u => u.email === form.email.trim())) errs.email = 'Email đã tồn tại'
     if (!form.password || form.password.length < 6) errs.password = 'Mật khẩu tối thiểu 6 ký tự'
     setFormErr(errs)
     return Object.keys(errs).length === 0
   }
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!validate()) return
-    const newUser: ManagedUser = {
-      id: `u${Date.now()}`,
-      username: form.username.trim(),
-      name:     form.name.trim(),
-      email:    form.email.trim(),
-      role:     form.role,
-      status:   form.status,
-      createdAt: new Date().toISOString(),
-      lastLogin: '—',
+    setSubmitting(true)
+    try {
+      const created = await createUserApi({
+        email: form.email.trim(),
+        password: form.password,
+        fullName: form.name.trim(),
+        role: form.role,
+      })
+      setUsers(prev => [mapBeUser(created), ...prev])
+      closeModal()
+      toast.success('Tạo tài khoản thành công')
+    } catch (err: any) {
+      const message = err?.response?.data?.message ?? 'Tạo tài khoản thất bại'
+      toast.error(message)
+    } finally {
+      setSubmitting(false)
     }
-    setUsers(prev => [newUser, ...prev])
-    closeModal()
-    toast.success('Tạo tài khoản thành công')
   }
 
   return (
@@ -193,7 +225,13 @@ export default function AdminUsers() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="py-14 text-center text-gray-400">
+                    <Loader2 className="w-5 h-5 animate-spin inline mr-2" /> Đang tải danh sách tài khoản...
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-14 text-center text-gray-400">Không tìm thấy tài khoản nào</td>
                 </tr>
@@ -215,15 +253,17 @@ export default function AdminUsers() {
                   <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{fmtDate(u.createdAt)}</td>
                   <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{fmtDate(u.lastLogin)}</td>
                   <td className="px-4 py-3">
-                    <button onClick={() => toggleLock(u.id)}
+                    <button onClick={() => toggleLock(u.id)} disabled={togglingId === u.id}
                       title={u.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50
                         ${u.status === 'active'
                           ? 'bg-red-50 text-red-600 hover:bg-red-100'
                           : 'bg-green-50 text-green-600 hover:bg-green-100'}`}>
-                      {u.status === 'active'
-                        ? <><Lock   size={12} /> Khóa</>
-                        : <><Unlock size={12} /> Mở khóa</>}
+                      {togglingId === u.id
+                        ? <Loader2 size={12} className="animate-spin" />
+                        : u.status === 'active'
+                          ? <><Lock   size={12} /> Khóa</>
+                          : <><Unlock size={12} /> Mở khóa</>}
                     </button>
                   </td>
                 </tr>
@@ -265,19 +305,7 @@ export default function AdminUsers() {
                 {formErr.name && <p className="text-red-500 text-xs mt-1">{formErr.name}</p>}
               </div>
 
-              {/* Username */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Username <span className="text-red-500">*</span>
-                </label>
-                <input value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-                  placeholder="vd: staff04"
-                  className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300
-                    ${formErr.username ? 'border-red-400 bg-red-50' : 'border-gray-300'}`} />
-                {formErr.username && <p className="text-red-500 text-xs mt-1">{formErr.username}</p>}
-              </div>
-
-              {/* Email */}
+              {/* Email — BE dùng email làm định danh đăng nhập (không có username riêng) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Email <span className="text-red-500">*</span>
@@ -308,37 +336,28 @@ export default function AdminUsers() {
                 {formErr.password && <p className="text-red-500 text-xs mt-1">{formErr.password}</p>}
               </div>
 
-              {/* Role + Trạng thái */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                  <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
-                    <option value="driver">Tài xế</option>
-                    <option value="staff">Nhân viên</option>
-                    <option value="manager">Quản lý</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
-                  <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as 'active' | 'locked' }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
-                    <option value="active">Hoạt động</option>
-                    <option value="locked">Khóa ngay</option>
-                  </select>
-                </div>
+              {/* Role */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
+                  <option value="driver">Tài xế</option>
+                  <option value="staff">Nhân viên</option>
+                  <option value="manager">Quản lý</option>
+                  <option value="admin">Admin</option>
+                </select>
               </div>
             </div>
 
             {/* Modal footer */}
             <div className="flex gap-3 px-6 pb-5">
-              <button onClick={closeModal}
-                className="flex-1 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+              <button onClick={closeModal} disabled={submitting}
+                className="flex-1 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50">
                 Hủy
               </button>
-              <button onClick={handleAdd}
-                className="flex-1 bg-blue-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors">
+              <button onClick={handleAdd} disabled={submitting}
+                className="flex-1 bg-blue-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                {submitting && <Loader2 size={14} className="animate-spin" />}
                 Tạo tài khoản
               </button>
             </div>
@@ -348,3 +367,4 @@ export default function AdminUsers() {
     </PageWrapper>
   )
 }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   

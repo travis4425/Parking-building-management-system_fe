@@ -77,8 +77,8 @@ export default function LoginPage() {
   async function onSubmit(data: LoginForm) {
     setApiError(null)
     try {
-      const { user: loggedUser, token } = await loginApi(data.username, data.password)
-      login(loggedUser, token, data.rememberMe ?? false)
+      const { user: loggedUser, token, refreshToken } = await loginApi(data.username, data.password)
+      login(loggedUser, token, refreshToken, data.rememberMe ?? false)
       navigate(getHomeByRole(loggedUser.role), { replace: true })
     } catch (err) {
       setApiError(err instanceof Error ? err.message : 'Đăng nhập thất bại')
@@ -86,9 +86,11 @@ export default function LoginPage() {
   }
 
   // Click vào demo account → điền sẵn form
+  // Lưu ý: admin01 dùng mật khẩu riêng (Admin@1234) vì là tài khoản admin gốc của BE,
+  // còn manager01/staff01/driver01 dùng chung mật khẩu demo 123456 (xem prisma/seed.ts)
   function fillDemo(username: string) {
     setValue('username', username)
-    setValue('password', '123456')
+    setValue('password', username === 'admin01' ? 'Admin@1234' : '123456')
   }
 
   return (
@@ -299,6 +301,7 @@ export default function LoginPage() {
             </div>
             <p className="text-xs text-center text-gray-400">
               Mật khẩu: <span className="font-mono font-medium text-gray-500">123456</span>
+              {' '}(admin01 dùng <span className="font-mono font-medium text-gray-500">Admin@1234</span>)
               {' · '}Click để điền tự động
             </p>
           </div>

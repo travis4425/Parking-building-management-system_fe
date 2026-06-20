@@ -1,10 +1,12 @@
 // Dashboard quản lý — metric cards tổng quan + IoT slot grid realtime
+import { useEffect, useState } from 'react'
 import { ParkingSquare, Car, Banknote, AlertTriangle, TrendingUp } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import PageWrapper from '@/components/layout/PageWrapper'
 import SlotGrid from '@/components/iot/SlotGrid'
 import { useSlotSimulation } from '@/hooks/useSlotSimulation'
-import { MOCK_STATS } from '@/api/mockSlots'
+import { useAlertStore } from '@/store/alertStore'
+import { fetchRevenueReport } from '@/api/reportsApi'
 
 // ─── Kiểu dữ liệu metric card ────────────────────────────────────────────────
 interface MetricCard {
@@ -28,6 +30,25 @@ function formatVND(amount: number): string {
 export default function ManagerDashboard() {
   // Không truyền initialSlots — hook tự đọc từ slotStore (share state với SlotManagement)
   const { slots, lastUpdated, changedIds, stats } = useSlotSimulation()
+  const pendingAlerts = useAlertStore((s) => s.pendingCount())
+
+  // Số liệu hôm nay — lấy thật từ BE (GET /reports/revenue?period=day)
+  const [todayVehicles, setTodayVehicles] = useState(0)
+  const [todayRevenue, setTodayRevenue] = useState(0)
+  const [loadingReport, setLoadingReport] = useState(true)
+
+  useEffect(() => {
+    let alive = true
+    fetchRevenueReport({ period: 'day' })
+      .then((report) => {
+        if (!alive) return
+        setTodayVehicles(report.totalSessions)
+        setTodayRevenue(report.totalRevenue)
+      })
+      .catch((err) => console.error('Lỗi tải báo cáo doanh thu hôm nay:', err))
+      .finally(() => alive && setLoadingReport(false))
+    return () => { alive = false }
+  }, [])
 
   // Metric cards — 2 card đầu dùng stats realtime từ simulation
   const metrics: MetricCard[] = [
@@ -42,31 +63,27 @@ export default function ManagerDashboard() {
     },
     {
       label: 'Lượt xe hôm nay',
-      value: `${MOCK_STATS.todayVehicles}`,
-      sub: 'lượt ra vào',
+      value: loadingReport ? '…' : `${todayVehicles}`,
+      sub: 'lượt ra vào (đã hoàn tất)',
       icon: Car,
       color: 'bg-blue-50 text-blue-600',
-      trend: '+12% so hôm qua',
-      trendUp: true,
     },
     {
       label: 'Doanh thu hôm nay',
-      value: formatVND(MOCK_STATS.todayRevenue),
+      value: loadingReport ? '…' : formatVND(todayRevenue),
       sub: 'tính đến thời điểm này',
       icon: Banknote,
       color: 'bg-violet-50 text-violet-600',
-      trend: '+8.3% so hôm qua',
-      trendUp: true,
     },
     {
       label: 'Cảnh báo',
-      value: `${MOCK_STATS.activeAlerts}`,
+      value: `${pendingAlerts}`,
       sub: `${stats.maintenance} slot đang bảo trì`,
       icon: AlertTriangle,
-      color: MOCK_STATS.activeAlerts > 0
+      color: pendingAlerts > 0
         ? 'bg-red-50 text-red-600'
         : 'bg-gray-50 text-gray-500',
-      trend: MOCK_STATS.activeAlerts > 0 ? 'Cần xử lý' : 'Bình thường',
+      trend: pendingAlerts > 0 ? 'Cần xử lý' : 'Bình thường',
       trendUp: false,
     },
   ]
@@ -156,25 +173,4 @@ export default function ManagerDashboard() {
         <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2.5">
           {[
             { label: 'Trống',      value: stats.available,   color: 'bg-emerald-400' },
-            { label: 'Có xe',     value: stats.occupied,    color: 'bg-red-500'     },
-            { label: 'Đặt trước', value: stats.reserved,    color: 'bg-yellow-400'  },
-            { label: 'Bảo trì',   value: stats.maintenance, color: 'bg-gray-300'    },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="flex items-center gap-1.5 text-xs text-gray-600">
-              <span className={cn('w-2.5 h-2.5 rounded-sm', color)} />
-              {label}: <span className="font-semibold">{value}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── IoT Slot Grid ── */}
-      <SlotGrid
-        slots={slots}
-        lastUpdated={lastUpdated}
-        changedIds={changedIds}
-        floors={[1, 2, 3]}
-      />
-    </PageWrapper>
-  )
-}
+            { label: 'Có xe',     value: stats.occupied,    color
