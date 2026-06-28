@@ -1,17 +1,19 @@
 // Trang thu phí & quản lý thanh toán — 2 tab: Thu phí nhanh + Lịch sử ca
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import * as XLSX from 'xlsx'
 import { QRCodeCanvas } from 'qrcode.react'
 import {
   CreditCard, Banknote, QrCode, Search, CheckCircle,
   Car, Clock, Receipt as ReceiptIcon, Download,
-  ChevronRight, AlertCircle, X, Wallet,
+  ChevronRight, AlertCircle, X, Wallet, Loader2,
 } from 'lucide-react'
 import Receipt from '@/components/staff/Receipt'
 import { useSessionStore } from '@/store/sessionStore'
 import { usePaymentStore } from '@/store/paymentStore'
 import { useAuthStore } from '@/store/authStore'
 import { toast } from 'sonner'
+import { createCashPayment, createVnpayPaymentUrl } from '@/api/paymentsApi'
+import { getSocket } from '@/lib/socket'
 import { calculateFee, formatDuration, LOST_TICKET_SURCHARGE } from '@/utils/feeCalculator'
 import type { FeeBreakdown } from '@/utils/feeCalculator'
 import type { ParkingSession, PayMethod } from '@/utils/types'
@@ -67,6 +69,15 @@ export default function StaffPayment() {
   const [confirmed,    setConfirmed]    = useState(false)
   const [showReceipt,  setShowReceipt]  = useState(false)
   const [lastReceiptNo, setLastReceiptNo] = useState('')
+  const [submitting,   setSubmitting]   = useState(false)
+  const [submitErr,    setSubmitErr]    = useState('')
+
+  // QR thật qua VNPay — thay cho mã QR giả trước đây. createVnpayPaymentUrl trả về
+  // link thanh toán thật, mã hoá thành QR cho khách quét bằng app ngân hàng/VNPay.
+  // Khi khách quét & thanh toán xong, VNPay gọi IPN về BE, BE bắn socket event
+  // `payment:success` — FE nghe event này để tự động hoàn tất, KHÔNG cần staff bấm xác nhận.
+  const [qrLoading, setQrLoading] = useState(false)
+  const [qrUrl,     setQrUrl]     = useState('')
 
   // --- Tab 2: Lịch sử ---
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all')
@@ -112,17 +123,14 @@ export default function StaffPayment() {
     setSession(null);   setFee(null);         setPayMethod(null)
     setCashGiven('');   setConfirmed(false);  setShowReceipt(false)
     setIsLostTicket(false)
+    setQrUrl('');       setQrLoading(false);  setSubmitErr('')
   }
 
-  // --- Confirm payment ---
-  function handleConfirm() {
-    if (!session || !fee || !payMethod) return
-
-    const cashNum = payMethod === 'cash' ? parseFloat(cashGiven.replace(/[^\d]/g, '')) : undefined
-    if (payMethod === 'cash' && (isNaN(cashNum!) || cashNum! < fee.total)) return
-
+  // Ghi nhận cục bộ sau khi BE xác nhận thanh toán thành công — dùng cho hóa đơn
+  // & báo cáo ca (paymentStore vẫn chỉ là state UI trong ca, không phải nguồn sự thật).
+  function finalizeLocalPayment(method: PayMethod) {
+    if (!session || !fee) return
     markAsPaid(session.id, fee.total, user?.id ?? 'staff')
-
     addPayment({
       sessionId:       session.id,
       vehiclePlate:    session.vehiclePlate,
@@ -132,13 +140,10 @@ export default function StaffPayment() {
       checkOutTime:    checkOutTime.toISOString(),
       durationMinutes: fee.durationMinutes,
       fee:             fee.total,
-      payMethod,
+      payMethod:       method,
       staffId:         user?.id   ?? 'staff',
       staffName:       user?.name ?? 'Nhân viên',
     })
-
-    // Lấy receiptNo vừa tạo từ payments store (phần tử đầu tiên sau addPayment)
-    // Dùng timeout để state update xong
     setConfirmed(true)
     toast.success('Thanh toán thành công — Barrier đã mở')
     setTimeout(() => {
@@ -147,6 +152,62 @@ export default function StaffPayment() {
       setShowReceipt(true)
     }, 600)
   }
+
+  // --- Confirm payment (tiền mặt / thẻ — staff xác nhận trực tiếp) ---
+  // Gọi BE thật: POST /api/payments — BE đóng phiên (status COMPLETED), giải phóng
+  // slot và bắn socket `payment:success`. Lưu ý: nghĩa là với luồng tiền mặt/thẻ,
+  // slot được giải phóng ngay khi thu phí (không đợi xe ra cổng) — đúng theo service
+  // hiện tại của BE; nếu nhóm muốn "thu phí xong xe vẫn đỗ tới khi ra cổng mới giải
+  // phóng slot" thì cần BE thêm trạng thái riêng, ngoài phạm vi sửa của FE.
+  async function handleConfirm() {
+    if (!session || !fee || !payMethod) return
+    if (payMethod === 'qr') return // QR tự hoàn tất qua socket khi VNPay báo về, không cần bấm
+
+    const cashNum = payMethod === 'cash' ? parseFloat(cashGiven.replace(/[^\d]/g, '')) : undefined
+    if (payMethod === 'cash' && (isNaN(cashNum!) || cashNum! < fee.total)) return
+
+    setSubmitting(true)
+    setSubmitErr('')
+    try {
+      await createCashPayment(session.id, fee.total, payMethod === 'cash' ? 'CASH' : 'CARD')
+      finalizeLocalPayment(payMethod)
+    } catch (err: any) {
+      console.error('Lỗi xác nhận thanh toán:', err)
+      setSubmitErr(err?.response?.data?.message ?? 'Không thể xác nhận thanh toán, vui lòng thử lại')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // --- Luồng QR: tạo URL VNPay thật khi staff chọn "QR Code" ---
+  useEffect(() => {
+    if (payMethod !== 'qr' || !session || !fee) return
+    setQrLoading(true)
+    setQrUrl('')
+    createVnpayPaymentUrl(session.id, fee.total)
+      .then(setQrUrl)
+      .catch((err) => {
+        console.error('Lỗi tạo URL thanh toán VNPay:', err)
+        setSubmitErr('Không tạo được mã QR thanh toán, vui lòng thử phương thức khác')
+      })
+      .finally(() => setQrLoading(false))
+  }, [payMethod, session, fee])
+
+  // --- Nghe socket `payment:success` để tự xác nhận khi khách quét QR thanh toán xong ---
+  const confirmedRef = useRef(confirmed)
+  confirmedRef.current = confirmed
+  useEffect(() => {
+    if (payMethod !== 'qr' || !session) return
+    const socket = getSocket()
+    function onPaymentSuccess(payload: { sessionId: string }) {
+      if (payload?.sessionId === session!.id && !confirmedRef.current) {
+        finalizeLocalPayment('qr')
+      }
+    }
+    socket.on('payment:success', onPaymentSuccess)
+    return () => { socket.off('payment:success', onPaymentSuccess) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payMethod, session])
 
   // --- Cash validation ---
   const cashNum = parseFloat(cashGiven.replace(/[^\d]/g, '')) || 0
@@ -355,17 +416,27 @@ export default function StaffPayment() {
                   </div>
                 )}
 
-                {/* QR: hiển thị mã QR mock */}
+                {/* QR: mã QR thanh toán VNPay thật — tự hoàn tất qua socket payment:success */}
                 {payMethod === 'qr' && (
                   <div className="flex flex-col items-center gap-2 py-4 bg-gray-50 rounded-xl">
-                    <QRCodeCanvas
-                      value={`PARKINGOS:PAY:${session.id}:${fee.total}`}
-                      size={140}
-                      level="M"
-                      includeMargin
-                    />
-                    <p className="text-xs text-gray-500">Quét bằng app ngân hàng / MoMo / ZaloPay</p>
-                    <p className="text-base font-bold text-blue-600">{fmt(fee.total)}</p>
+                    {qrLoading ? (
+                      <div className="flex flex-col items-center gap-2 py-6 text-gray-400">
+                        <Loader2 className="w-6 h-6 animate-spin" />
+                        <p className="text-xs">Đang tạo mã QR thanh toán...</p>
+                      </div>
+                    ) : qrUrl ? (
+                      <>
+                        <QRCodeCanvas value={qrUrl} size={140} level="M" includeMargin />
+                        <p className="text-xs text-gray-500">Quét bằng app ngân hàng / VNPay</p>
+                        <p className="text-base font-bold text-blue-600">{fmt(fee.total)}</p>
+                        <p className="text-xs text-amber-600 flex items-center gap-1 mt-1">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Đang chờ khách thanh toán...
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-red-500">Không tạo được mã QR</p>
+                    )}
                   </div>
                 )}
 
@@ -379,19 +450,28 @@ export default function StaffPayment() {
                   </div>
                 )}
 
-                {/* Nút xác nhận */}
-                <button
-                  onClick={handleConfirm}
-                  disabled={!payMethod || !cashOk}
-                  className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-semibold flex items-center justify-center gap-2 transition-colors"
-                >
-                  <CheckCircle className="w-5 h-5" />
-                  {payMethod === 'cash'  ? 'Xác nhận thu tiền mặt' :
-                   payMethod === 'qr'    ? 'Xác nhận đã nhận tiền QR' :
-                   payMethod === 'card'  ? 'Xác nhận đã quẹt thẻ' :
-                   'Xác nhận thanh toán'}
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+                {submitErr && (
+                  <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    {submitErr}
+                  </div>
+                )}
+
+                {/* Nút xác nhận — QR tự hoàn tất qua socket, không cần bấm */}
+                {payMethod !== 'qr' && (
+                  <button
+                    onClick={handleConfirm}
+                    disabled={!payMethod || !cashOk || submitting}
+                    className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-semibold flex items-center justify-center gap-2 transition-colors"
+                  >
+                    {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+                    {submitting ? 'Đang xác nhận...' :
+                     payMethod === 'cash'  ? 'Xác nhận thu tiền mặt' :
+                     payMethod === 'card'  ? 'Xác nhận đã quẹt thẻ' :
+                     'Xác nhận thanh toán'}
+                    {!submitting && <ChevronRight className="w-4 h-4" />}
+                  </button>
+                )}
               </div>
             )}
 
