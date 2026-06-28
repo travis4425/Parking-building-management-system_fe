@@ -1,19 +1,23 @@
-// Trang check-in xe vào — LPR camera, form thông tin, gợi ý slot AI, tạo session + in QR
+// Trang check-in xe vào — LPR camera, form thông tin, tạo session + in QR
+// ⚠️ ĐÃ GỠ: tính năng gợi ý slot bằng AI. Theo quyết định mới của nhóm, hệ thống không
+// dùng sensor từng slot nên không có cách xác minh xe có đậu đúng chỗ AI gợi ý hay không —
+// chỉ còn thống kê số chỗ trống theo zone/tầng, staff hướng dẫn driver bằng lời.
 import { useState, useEffect, useRef } from 'react'
 import { QRCodeCanvas } from 'qrcode.react'
 import {
-  Sparkles, Loader2, CheckCircle, AlertCircle,
-  Printer, X, ClipboardList, Car, Clock, Bot,
+  CheckCircle, AlertCircle,
+  Printer, X, ClipboardList, Car, Clock,
 } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import LPRCamera from '@/components/staff/LPRCamera'
 import { useSlotStore } from '@/store/slotStore'
 import { useSessionStore } from '@/store/sessionStore'
 import { toast } from 'sonner'
-import { suggestSlot, type SlotSuggestion } from '@/ai/slotSuggestion'
 import { useIotStore } from '@/store/iotStore'
 import { generateToken } from '@/utils/qrToken'
 import { fetchEntryGates, type BeGate } from '@/api/gatesApi'
+import { fetchZoneSummary, type ZoneSummary } from '@/api/zonesApi'
+import { Building2 } from 'lucide-react'
 import type { VehicleType, ParkingSession } from '@/utils/types'
 
 const VEHICLE_OPTIONS: { value: VehicleType; label: string; icon: string }[] = [
@@ -190,11 +194,14 @@ export default function CheckIn() {
       .catch((err) => console.error('Lỗi tải danh sách cổng vào:', err))
   }, [])
 
-  // AI suggestion state
-  const [aiLoading,    setAiLoading]    = useState(false)
-  const [aiCooldown,   setAiCooldown]   = useState(false)
-  const [aiSuggestion, setAiSuggestion] = useState<SlotSuggestion | null>(null)
-  const [aiError,      setAiError]      = useState(false)
+  // Thống kê số chỗ trống theo tầng/zone (GET /api/zones/summary) — để staff biết
+  // tầng nào còn chỗ mà hướng dẫn driver, không còn gợi ý slot cụ thể bằng AI nữa.
+  const [zones, setZones] = useState<ZoneSummary[]>([])
+  useEffect(() => {
+    fetchZoneSummary()
+      .then(setZones)
+      .catch((err) => console.error('Lỗi tải thống kê chỗ trống theo zone:', err))
+  }, [])
 
   // Session state
   const [session,     setSession]     = useState<ParkingSession | null>(null)
@@ -208,37 +215,6 @@ export default function CheckIn() {
     return () => clearInterval(t)
   }, [])
 
-  // Reset suggestion khi đổi loại xe hoặc cổng vào
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAiSuggestion(null)
-     
-    setAiError(false)
-  }, [vehicleType, entryGate])
-
-  async function handleAiSuggest() {
-    if (aiCooldown) return
-    setAiLoading(true)
-    setAiSuggestion(null)
-    setAiError(false)
-    try {
-      const result = await suggestSlot(slots, vehicleType, entryGate)
-      setAiSuggestion(result)
-      if (!result) { setAiError(true); toast.warning('Không thể gợi ý AI — Đang dùng gợi ý thủ công') }
-    } catch (err) {
-      setAiError(true)
-      const isRateLimit = err instanceof Error && err.message === 'RATE_LIMIT'
-      toast.warning(isRateLimit
-        ? 'API đang bận (429) — thử lại sau 10 giây'
-        : 'Không thể gợi ý AI — Đang dùng gợi ý thủ công'
-      )
-    } finally {
-      setAiLoading(false)
-      setAiCooldown(true)
-      setTimeout(() => setAiCooldown(false), 8_000)
-    }
-  }
-
   async function handleCreateSession() {
     setSubmitError('')
 
@@ -247,14 +223,9 @@ export default function CheckIn() {
       return
     }
 
-    // Xác định slot: dùng kết quả AI nếu có, không thì lấy slot trống đầu tiên khớp loại xe
-    let targetSlot = aiSuggestion
-      ? slots.find((s) => s.id === aiSuggestion.slotId)
-      : undefined
-
-    if (!targetSlot) {
-      targetSlot = slots.find((s) => s.status === 'available' && s.vehicleType === vehicleType)
-    }
+    // Lấy slot trống đầu tiên khớp loại xe (hệ thống không gợi ý slot cụ thể nữa —
+    // staff hướng dẫn driver tự tìm chỗ trong khu/tầng còn chỗ)
+    const targetSlot = slots.find((s) => s.status === 'available' && s.vehicleType === vehicleType)
 
     if (!targetSlot) {
       setSubmitError('Không còn slot trống phù hợp cho loại xe này.')
@@ -292,8 +263,6 @@ export default function CheckIn() {
     setVehicleType('motorbike')
     setEntryGate(gates[0]?.id ?? '')
     setNotes('')
-    setAiSuggestion(null)
-    setAiError(false)
     setSubmitError('')
     setSession(null)
   }
@@ -404,126 +373,37 @@ export default function CheckIn() {
             </div>
           </div>
 
-          {/* ── Gợi ý AI ── */}
+          {/* ── Chỗ trống theo tầng/zone ── */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-amber-600" />
-                </div>
-                <h2 className="font-semibold text-gray-900">Gợi ý slot</h2>
-                <span className="inline-flex items-center gap-1 text-xs font-bold
-                                 bg-gradient-to-r from-amber-400 to-orange-400 text-white
-                                 px-2 py-0.5 rounded-full shadow-sm">
-                  <Sparkles className="w-3 h-3" /> AI
-                </span>
-                <span className="text-xs text-gray-400">Gemini 1.5 Flash</span>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-sky-50 flex items-center justify-center">
+                <Building2 className="w-4 h-4 text-sky-600" />
               </div>
-              <button
-                onClick={handleAiSuggest}
-                disabled={aiLoading || aiCooldown}
-                className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg
-                           bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white
-                           transition-colors shadow-sm"
-              >
-                {aiLoading
-                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang phân tích...</>
-                  : <><Sparkles className="w-3.5 h-3.5" /> Gợi ý</>
-                }
-              </button>
+              <h2 className="font-semibold text-gray-900">Chỗ trống theo tầng</h2>
             </div>
 
-            {/* Trạng thái idle */}
-            {!aiSuggestion && !aiLoading && !aiError && (
-              <div className="flex flex-col items-center gap-2 py-5 text-gray-400">
-                <Bot className="w-8 h-8 opacity-30" />
-                <p className="text-sm text-center">
-                  Nhấn <strong className="text-amber-600">Gợi ý</strong> để AI chọn slot tối ưu
-                  <br />
-                  <span className="text-xs">dựa trên loại xe và cổng vào</span>
-                </p>
-              </div>
-            )}
-
-            {/* Loading animation */}
-            {aiLoading && (
-              <div className="flex flex-col items-center gap-3 py-5">
-                <div className="relative">
-                  <Bot className="w-8 h-8 text-amber-400" />
-                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full animate-ping" />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-medium text-gray-700">Đang phân tích bãi xe...</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Gemini đang xử lý {availableCount} slot trống</p>
-                </div>
-                {/* Skeleton bar */}
-                <div className="w-full space-y-2 mt-1">
-                  {[0.75, 0.5, 0.9].map((w, i) => (
-                    <div key={i} className="h-2.5 bg-amber-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-amber-300 rounded-full animate-pulse"
-                        style={{ width: `${w * 100}%`, animationDelay: `${i * 150}ms` }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Error state */}
-            {aiError && !aiLoading && (
-              <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50
-                              border border-red-200 rounded-xl px-3 py-2.5">
-                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium">Không thể kết nối AI</p>
-                  <p className="text-xs text-red-400 mt-0.5">Đã dùng slot mặc định thay thế</p>
-                </div>
-              </div>
-            )}
-
-            {/* Success result */}
-            {aiSuggestion && !aiLoading && (
-              <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200
-                              rounded-xl p-4 space-y-3">
-                {/* Slot info */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                    <span className="text-sm font-semibold text-gray-900">Slot được chọn:</span>
-                    <span className="text-base font-bold text-blue-600 font-mono">
-                      {aiSuggestion.slotCode}
+            {zones.length === 0 ? (
+              <p className="text-sm text-gray-400 py-2">Đang tải dữ liệu...</p>
+            ) : (
+              <div className="space-y-1.5">
+                {zones.map((z) => (
+                  <div
+                    key={z.id}
+                    className="flex items-center justify-between text-sm px-3 py-2 rounded-lg
+                               bg-gray-50 border border-gray-100"
+                  >
+                    <span className="text-gray-700">
+                      Tầng {z.floor} · {z.name}
                     </span>
+                    {z.availableSlots > 0 ? (
+                      <span className="font-semibold text-emerald-600">
+                        Còn {z.availableSlots} chỗ
+                      </span>
+                    ) : (
+                      <span className="font-semibold text-red-500">Hết chỗ</span>
+                    )}
                   </div>
-                  <span className="text-xs text-gray-500 bg-white border border-gray-200
-                                   px-2 py-0.5 rounded-full">
-                    Tầng {aiSuggestion.floor} · Khu {aiSuggestion.zone}
-                  </span>
-                </div>
-
-                {/* Lý do */}
-                <p className="text-xs text-gray-600 leading-relaxed bg-white/60
-                              rounded-lg px-3 py-2 border border-amber-100">
-                  💡 {aiSuggestion.reason}
-                </p>
-
-                {/* Confidence bar */}
-                <div className="space-y-1">
-                  <div className="flex justify-between items-center text-xs text-gray-500">
-                    <span>Độ tin cậy AI</span>
-                    <span className="font-semibold text-amber-700">
-                      {Math.round(aiSuggestion.confidence * 100)}%
-                    </span>
-                  </div>
-                  <div className="h-1.5 bg-amber-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full
-                                 transition-all duration-700 ease-out"
-                      style={{ width: `${aiSuggestion.confidence * 100}%` }}
-                    />
-                  </div>
-                </div>
+                ))}
               </div>
             )}
           </div>
