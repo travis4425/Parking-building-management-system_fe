@@ -186,11 +186,12 @@ export default function ManagerDashboard() {
       </div>
 
       {/* ── IoT Slot Grid ── */}
+      {/* 🐞 SỬA: bỏ floors={[1,2,3]} hardcode — để SlotGrid tự lấy tầng thật từ slots,
+          không bỏ sót tầng -1 (Hầm B1, xe máy/xe đạp) */}
       <SlotGrid
         slots={slots}
         lastUpdated={lastUpdated}
         changedIds={changedIds}
-        floors={[1, 2, 3]}
       />
     </PageWrapper>
   )
