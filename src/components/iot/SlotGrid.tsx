@@ -1,5 +1,5 @@
 // SlotGrid — hiển thị lưới slot theo tầng, click để xem chi tiết, IoT animation khi slot đổi trạng thái
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { slotsByFloor } from '@/hooks/useSlotSimulation'
@@ -58,10 +58,27 @@ export default function SlotGrid({
   slots,
   lastUpdated,
   changedIds,
-  floors = [1, 2, 3],
+  floors,
 }: SlotGridProps) {
-  const [activeFloor, setActiveFloor] = useState<number>(floors[0])
+  // 🐞 SỬA: trước đây mặc định hardcode [1, 2, 3] nên tầng -1 (Hầm B1, xe máy/xe đạp)
+  // không bao giờ có tab để xem — khi không truyền floors, lấy tầng thật từ dữ liệu
+  // slot (giống cách CheckIn.tsx lấy zone thật từ BE) để không bỏ sót tầng nào.
+  const resolvedFloors = useMemo(() => {
+    if (floors) return floors
+    const unique = Array.from(new Set(slots.map((s) => s.floor)))
+    return unique.sort((a, b) => a - b)
+  }, [floors, slots])
+
+  const [activeFloor, setActiveFloor] = useState<number>(resolvedFloors[0] ?? 1)
   const [selectedSlot, setSelectedSlot] = useState<ParkingSlot | null>(null)
+
+  // Nếu danh sách tầng thay đổi (vd. slot tải xong sau khi mount) và tầng đang chọn
+  // không còn tồn tại trong danh sách mới → chuyển về tầng đầu tiên
+  useEffect(() => {
+    if (resolvedFloors.length > 0 && !resolvedFloors.includes(activeFloor)) {
+      setActiveFloor(resolvedFloors[0])
+    }
+  }, [resolvedFloors, activeFloor])
 
   const floorSlots = slotsByFloor(slots, activeFloor)
 
@@ -87,7 +104,7 @@ export default function SlotGrid({
 
       {/* Floor tabs */}
       <div className="flex border-b border-gray-100 bg-gray-50">
-        {floors.map((floor) => {
+        {resolvedFloors.map((floor) => {
           const count = slotsByFloor(slots, floor).filter((s) => s.status === 'available').length
           return (
             <button
