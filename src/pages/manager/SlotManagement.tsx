@@ -244,6 +244,14 @@ export default function SlotManagement() {
   const [floorFilter, setFloorFilter] = useState<number | 'all'>('all')
   const [statusFilter, setStatusFilter] = useState<SlotStatus | 'all'>('all')
 
+  // 🐞 SỬA: dropdown trước đây hardcode [1, 2, 3] nên thiếu tùy chọn tầng -1
+  // (Hầm B1, xe máy/xe đạp) — lấy danh sách tầng thật từ dữ liệu slot, khớp cách
+  // CheckIn.tsx (staff) lấy zone thật từ BE
+  const availableFloors = useMemo(
+    () => Array.from(new Set(slots.map((s) => s.floor))).sort((a, b) => a - b),
+    [slots],
+  )
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -349,7 +357,7 @@ export default function SlotManagement() {
                        focus:border-blue-500 cursor-pointer"
           >
             <option value="all">Tất cả tầng</option>
-            {[1, 2, 3].map((f) => <option key={f} value={f}>Tầng {f}</option>)}
+            {availableFloors.map((f) => <option key={f} value={f}>Tầng {f}</option>)}
           </select>
         </div>
 
