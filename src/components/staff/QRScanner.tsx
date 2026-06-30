@@ -3,16 +3,26 @@
 import { useEffect, useRef, useState } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { toast } from 'sonner'
-import { ScanLine, CameraOff, Loader2, KeyboardIcon, ArrowRight } from 'lucide-react'
+import { ScanLine, CameraOff, Loader2, KeyboardIcon, ArrowRight, Upload } from 'lucide-react'
 
 interface QRScannerProps {
   onScan:  (text: string) => void
   active:  boolean
 }
 
-type CamError = 'permission' | 'notfound' | 'other' | null
+type CamError = 'permission' | 'notfound' | 'other' | 'in_app_browser' | null
 
 const SCANNER_DIV_ID = 'html5-qr-reader'
+
+// 🐞 SỬA: webview trong-app (Zalo, Messenger, Instagram, Zoom...) thường chặn/giả
+// lập camera không ổn định — html5-qrcode có thể throw lỗi không phải Error chuẩn
+// (string/object trống) làm crash cả app. Phát hiện trước qua User-Agent để khỏi
+// thử camera trong các webview này, tránh crash, hiện luôn hướng dẫn mở bằng
+// trình duyệt thật (Safari/Chrome).
+function isInAppBrowser(): boolean {
+  const ua = navigator.userAgent || ''
+  return /Zalo|FBAN|FBAV|Instagram|Line\/|MicroMessenger|Snapchat|TikTok/i.test(ua)
+}
 
 // Phân loại lỗi camera dựa vào message
 function classifyError(err: unknown): CamError {
@@ -44,11 +54,13 @@ function playBeep() {
 
 export default function QRScanner({ onScan, active }: QRScannerProps) {
   const calledRef     = useRef(false)
+  const fileInputRef  = useRef<HTMLInputElement>(null)
   const [starting,    setStarting]    = useState(false)
   const [camError,    setCamError]    = useState<CamError>(null)
   const [scanOk,      setScanOk]      = useState(false)  // highlight xanh khi quét thành công
   const [manualMode,  setManualMode]  = useState(false)
   const [manualInput, setManualInput] = useState('')
+  const [uploading,   setUploading]   = useState(false)  // đang đọc QR từ ảnh tải lên
 
   useEffect(() => {
     if (active) {
@@ -65,6 +77,13 @@ export default function QRScanner({ onScan, active }: QRScannerProps) {
 
   useEffect(() => {
     if (!active) return
+
+    if (isInAppBrowser()) {
+      setCamError('in_app_browser')
+      setStarting(false)
+      setManualMode(true)
+      return
+    }
 
     calledRef.current = false
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -154,6 +173,26 @@ export default function QRScanner({ onScan, active }: QRScannerProps) {
     onScan(val)
   }
 
+  // Đọc mã QR từ ảnh tải lên từ máy (thay cho camera) — dùng html5-qrcode scanFile,
+  // không cần camera nên hoạt động cả khi camera bị chặn/lỗi/đang ở webview app chat.
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+
+    setUploading(true)
+    try {
+      const fileScanner = new Html5Qrcode(SCANNER_DIV_ID)
+      const decodedText = await fileScanner.scanFile(file, false)
+      playBeep()
+      onScan(decodedText)
+    } catch {
+      toast.error('Không đọc được mã QR từ ảnh này — vui lòng chọn ảnh khác hoặc nhập mã thủ công')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   return (
     <div className="space-y-3">
       {/* Vùng camera + viewfinder overlay */}
@@ -226,6 +265,19 @@ export default function QRScanner({ onScan, active }: QRScannerProps) {
           </div>
         )}
 
+        {/* Mở trong webview app chat (Zalo, Messenger...) — camera không ổn định */}
+        {camError === 'in_app_browser' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-900 p-4 text-center">
+            <CameraOff className="w-8 h-8 text-amber-400" />
+            <p className="text-sm font-semibold text-amber-300">Đang mở trong app chat</p>
+            <p className="text-xs text-gray-400">
+              Camera không hoạt động ổn định khi mở từ Zalo/Messenger... Vui lòng nhấn{' '}
+              <strong>•••</strong> ở góc trên/dưới và chọn <strong>Mở bằng Safari/Chrome</strong>,
+              hoặc nhập mã QR thủ công bên dưới.
+            </p>
+          </div>
+        )}
+
         {/* Lỗi khác */}
         {camError === 'other' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-900">
@@ -249,13 +301,36 @@ export default function QRScanner({ onScan, active }: QRScannerProps) {
         )}
       </div>
 
-      {/* Nút chuyển nhập thủ công (khi camera OK) */}
-      {!camError && !starting && !manualMode && active && (
-        <button onClick={() => setManualMode(true)}
-          className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors">
-          <KeyboardIcon className="w-3.5 h-3.5" />
-          Nhập mã QR thủ công
-        </button>
+      {/* Input ẩn dùng để chọn ảnh từ máy/thư mục */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileUpload}
+      />
+
+      {/* Nút chuyển nhập thủ công + tải ảnh QR lên — luôn hiện khi đang active, kể cả
+          khi camera lỗi (permission/notfound/in_app_browser...) vì 2 cách này không cần camera */}
+      {!manualMode && active && (
+        <div className="flex items-center gap-4">
+          {!camError && !starting && (
+            <button onClick={() => setManualMode(true)}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+              <KeyboardIcon className="w-3.5 h-3.5" />
+              Nhập mã QR thủ công
+            </button>
+          )}
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600
+                       disabled:opacity-50 transition-colors">
+            {uploading
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : <Upload className="w-3.5 h-3.5" />
+            }
+            {uploading ? 'Đang đọc ảnh...' : 'Tải ảnh QR lên từ máy'}
+          </button>
+        </div>
       )}
 
       {/* Fallback input — nhập PKG token từ vé */}

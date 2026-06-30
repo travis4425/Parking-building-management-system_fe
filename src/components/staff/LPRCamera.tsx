@@ -1,7 +1,7 @@
 // Component camera LPR — nhận diện biển số qua BE thật (Plate Recognizer), không còn Tesseract.js
 import { useState, useCallback, useRef } from 'react'
 import Webcam from 'react-webcam'
-import { Camera, Loader2, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react'
+import { Camera, Loader2, AlertTriangle, CheckCircle, RefreshCw, Upload } from 'lucide-react'
 import { recognizePlate } from '@/api/aiApi'
 
 interface LPRCameraProps {
@@ -22,6 +22,7 @@ const LOW_CONFIDENCE_THRESHOLD = 60  // dưới 60% → cảnh báo nhưng vẫn
 export default function LPRCamera({ plate, onPlateChange }: LPRCameraProps) {
   const webcamRef     = useRef<Webcam>(null)
   const plateInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef  = useRef<HTMLInputElement>(null)
 
   const [cameraReady, setCameraReady] = useState(false)
   const [cameraError, setCameraError] = useState(false)
@@ -66,6 +67,34 @@ export default function LPRCamera({ plate, onPlateChange }: LPRCameraProps) {
     onPlateChange('')
   }
 
+  // Nhận diện biển số từ ảnh tải lên từ máy/thư mục — thay cho chụp bằng camera,
+  // dùng khi camera lỗi/không có camera, hoặc đã có sẵn ảnh biển số chụp từ trước.
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+
+    setStatus('loading')
+    onPlateChange('')
+
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const dataUrl = reader.result
+      if (typeof dataUrl !== 'string') { setStatus('error'); return }
+      try {
+        const result = await recognizePlate(dataUrl)
+        if (!result.licensePlate) { setStatus('error'); return }
+        setConfidence(result.confidence)
+        onPlateChange(result.licensePlate)
+        setStatus('success')
+      } catch {
+        setStatus('error')
+      }
+    }
+    reader.onerror = () => setStatus('error')
+    reader.readAsDataURL(file)
+  }
+
   const lowConfidence = status === 'success' && confidence < LOW_CONFIDENCE_THRESHOLD
 
   return (
@@ -105,19 +134,40 @@ export default function LPRCamera({ plate, onPlateChange }: LPRCameraProps) {
         )}
       </div>
 
-      {/* Nút nhận diện — disabled khi đang xử lý hoặc camera chưa sẵn sàng */}
-      <button
-        onClick={handleDetect}
-        disabled={status === 'loading' || cameraError || !cameraReady}
-        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl
-                   bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
-                   text-white font-medium text-sm transition-colors"
-      >
-        {status === 'loading'
-          ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang nhận diện...</>
-          : <><Camera className="w-4 h-4" /> Nhận diện biển số</>
-        }
-      </button>
+      {/* Input ẩn dùng để chọn ảnh biển số từ máy/thư mục */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileUpload}
+      />
+
+      {/* Nút nhận diện bằng camera + tải ảnh lên — disabled khi đang xử lý */}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={handleDetect}
+          disabled={status === 'loading' || cameraError || !cameraReady}
+          className="flex items-center justify-center gap-2 py-2.5 rounded-xl
+                     bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
+                     text-white font-medium text-sm transition-colors"
+        >
+          {status === 'loading'
+            ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang nhận diện...</>
+            : <><Camera className="w-4 h-4" /> Chụp & nhận diện</>
+          }
+        </button>
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={status === 'loading'}
+          className="flex items-center justify-center gap-2 py-2.5 rounded-xl
+                     border border-gray-300 hover:border-blue-400 hover:text-blue-600
+                     disabled:opacity-50 disabled:cursor-not-allowed
+                     text-gray-700 font-medium text-sm transition-colors"
+        >
+          <Upload className="w-4 h-4" /> Tải ảnh lên
+        </button>
+      </div>
 
       {/* Kết quả thành công */}
       {status === 'success' && (
