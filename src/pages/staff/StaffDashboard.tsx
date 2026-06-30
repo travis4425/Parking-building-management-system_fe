@@ -1,7 +1,7 @@
 // Dashboard ca trực nhân viên — metric thật + cảnh báo thật (lấy từ BE qua alertStore)
 import { useNavigate } from 'react-router-dom'
 import {
-  AlertTriangle, CheckCircle, Clock,
+  AlertTriangle, CheckCircle, Clock, Cpu,
   ParkingSquare, Car, ChevronRight, RefreshCw,
 } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'

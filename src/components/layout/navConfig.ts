@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   Settings,
   ScrollText,
-  Cpu,
   Home,
   CalendarCheck,
   History,
