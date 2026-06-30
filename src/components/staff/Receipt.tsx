@@ -20,8 +20,9 @@ const PAY_LABELS: Record<PayMethod, string> = {
   card: 'Thẻ ngân hàng',
 }
 
+// 🐞 SỬA: làm tròn về số nguyên trước khi format — VND không có phần thập phân
 function fmt(n: number) {
-  return new Intl.NumberFormat('vi-VN').format(n) + ' ₫'
+  return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' ₫'
 }
 
 const VEHICLE_LABELS: Record<string, string> = {
@@ -127,16 +128,19 @@ export default function Receipt({ session, fee, payMethod, cashGiven, receiptNo,
 
             {/* Chi tiết phí */}
             <table><tbody>
+              {!fee.isOvernight && fee.basePrice > 0 && (
+                <tr><td>Phí cơ bản</td><td>{fmt(fee.basePrice)}</td></tr>
+              )}
               {fee.isOvernight ? (
                 <tr><td>Phí qua đêm (&gt; 12h)</td><td>{fmt(fee.overnightFee)}</td></tr>
               ) : fee.isPeak ? (
                 <tr>
-                  <td>{fee.billableHours}h × {fmt(fee.ratePeak)}/h<br /><small style={{ color: '#ea580c' }}>Giờ cao điểm</small></td>
+                  <td>{fee.billableHours.toFixed(2)}h × {fmt(fee.ratePeak)}/h<br /><small style={{ color: '#ea580c' }}>Giờ cao điểm</small></td>
                   <td>{fmt(fee.peakFee)}</td>
                 </tr>
               ) : (
                 <tr>
-                  <td>{fee.billableHours}h × {fmt(fee.rateNormal)}/h</td>
+                  <td>{fee.billableHours.toFixed(2)}h × {fmt(fee.rateNormal)}/h</td>
                   <td>{fmt(fee.normalFee)}</td>
                 </tr>
               )}

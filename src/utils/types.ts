@@ -56,6 +56,7 @@ export interface ParkingSession {
 export interface PricingRule {
   id: string
   vehicleType: VehicleType
+  basePrice: number       // Phí cơ bản (VND) — cộng thêm trước khi tính theo giờ, khớp BE pricing.service.ts
   normalRate: number      // VND/giờ thường
   peakRate: number        // VND/giờ cao điểm
   overnightRate: number   // VND/đêm

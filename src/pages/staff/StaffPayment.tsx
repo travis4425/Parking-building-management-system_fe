@@ -21,8 +21,9 @@ import type { ParkingSession, PayMethod } from '@/utils/types'
 type TabId = 'quick' | 'history'
 type HistoryFilter = 'all' | PayMethod
 
+// 🐞 SỬA: làm tròn về số nguyên trước khi format — VND không có phần thập phân
 function fmt(n: number) {
-  return new Intl.NumberFormat('vi-VN').format(n) + ' ₫'
+  return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' ₫'
 }
 
 const VEHICLE_LABELS: Record<string, string> = {
@@ -571,6 +572,12 @@ export default function StaffPayment() {
 
                   <div className="space-y-2 text-sm">
                     {/* Dòng phí chính */}
+                    {!fee.isOvernight && fee.basePrice > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500">Phí cơ bản</span>
+                        <span className="font-semibold">{fmt(fee.basePrice)}</span>
+                      </div>
+                    )}
                     {fee.isOvernight ? (
                       <div className="flex justify-between items-center">
                         <span className="text-gray-500">Phí qua đêm (&gt; 12h)</span>
@@ -580,7 +587,7 @@ export default function StaffPayment() {
                       <>
                         <div className="flex justify-between items-start">
                           <span className="text-gray-500">
-                            {fee.billableHours}h × {fmt(fee.ratePeak)}/h
+                            {fee.billableHours.toFixed(2)}h × {fmt(fee.ratePeak)}/h
                             <br />
                             <span className="text-xs text-orange-500">Giờ cao điểm</span>
                           </span>
@@ -590,7 +597,7 @@ export default function StaffPayment() {
                     ) : (
                       <div className="flex justify-between items-start">
                         <span className="text-gray-500">
-                          {fee.billableHours}h × {fmt(fee.rateNormal)}/h
+                          {fee.billableHours.toFixed(2)}h × {fmt(fee.rateNormal)}/h
                           <br />
                           <span className="text-xs text-gray-400">Giờ thường</span>
                         </span>

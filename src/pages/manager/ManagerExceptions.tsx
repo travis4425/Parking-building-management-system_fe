@@ -58,8 +58,9 @@ const EX_STATUS_COLOR: Record<ExceptionStatus, string> = {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+// 🐞 SỬA: làm tròn về số nguyên trước khi format — VND không có phần thập phân
 function fmt(n: number) {
-  return new Intl.NumberFormat('vi-VN').format(n) + ' ₫'
+  return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' ₫'
 }
 
 function formatDurationFull(ms: number) {

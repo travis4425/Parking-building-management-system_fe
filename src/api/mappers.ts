@@ -168,11 +168,14 @@ interface BePricePolicy {
 
 // BE lưu giá theo (basePrice + pricePerHour × giờ), FE hiển thị flat normalRate/peakRate/overnightRate
 // → normalRate ≈ pricePerHour, peakRate ≈ pricePerHour × peakMultiplier
+// 🐞 SỬA: giữ lại basePrice (trước đây bị bỏ qua) — feeCalculator.ts cần cộng đúng
+// phí cơ bản này thì số tiền ước tính trước khi thanh toán mới khớp số BE tính thật.
 export function mapPricePolicy(p: BePricePolicy): PricingRule {
   const peakMultiplier = p.peakMultiplier ?? 1.5
   return {
     id: p.id,
     vehicleType: mapVehicleTypeCode(p.vehicleType?.code),
+    basePrice: p.basePrice,
     normalRate: p.pricePerHour,
     peakRate: Math.round(p.pricePerHour * peakMultiplier),
     overnightRate: p.overnightRate,

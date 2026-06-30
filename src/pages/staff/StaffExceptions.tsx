@@ -97,8 +97,9 @@ export default function StaffExceptions() {
     ])
   }
 
+  // 🐞 SỬA: làm tròn về số nguyên trước khi format — VND không có phần thập phân
   function formatVND(n: number) {
-    return n.toLocaleString('vi-VN') + 'đ'
+    return Math.round(n).toLocaleString('vi-VN') + 'đ'
   }
 
   function formatTime(iso: string) {

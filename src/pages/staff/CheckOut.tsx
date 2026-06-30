@@ -22,8 +22,10 @@ const VEHICLE_LABELS: Record<string, string> = {
   motorbike: 'Xe máy', car: 'Ô tô', bicycle: 'Xe đạp',
 }
 
+// 🐞 SỬA: làm tròn về số nguyên trước khi format — VND không có phần thập phân (hào/xu),
+// trong khi totalFee BE trả về có thể có .xx do phép tính giờ × đơn giá.
 function fmt(n: number) {
-  return new Intl.NumberFormat('vi-VN').format(n) + ' ₫'
+  return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' ₫'
 }
 
 // ── Danh sách phương thức thanh toán ────────────────────────────────────────
@@ -295,11 +297,14 @@ export default function CheckOut() {
                   </div>
 
                   <div className="space-y-2 text-sm">
+                    {!fee.isOvernight && fee.basePrice > 0 && (
+                      <FeeRow label="Phí cơ bản" amount={fee.basePrice} />
+                    )}
                     {fee.isOvernight
                       ? <FeeRow label="Phí qua đêm (> 12 giờ)" amount={fee.overnightFee} />
                       : fee.isPeak
-                        ? <FeeRow label={`${fee.billableHours}h × ${fmt(fee.ratePeak)}/h (cao điểm)`} amount={fee.peakFee} />
-                        : <FeeRow label={`${fee.billableHours}h × ${fmt(fee.rateNormal)}/h (thường)`} amount={fee.normalFee} />
+                        ? <FeeRow label={`${fee.billableHours.toFixed(2)}h × ${fmt(fee.ratePeak)}/h (cao điểm)`} amount={fee.peakFee} />
+                        : <FeeRow label={`${fee.billableHours.toFixed(2)}h × ${fmt(fee.rateNormal)}/h (thường)`} amount={fee.normalFee} />
                     }
                     {fee.surcharge > 0 && <FeeRow label="Phụ thu mất vé" amount={fee.surcharge} warn />}
 

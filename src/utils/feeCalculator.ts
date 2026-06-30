@@ -8,9 +8,10 @@ export interface FeeBreakdown {
   checkInTime:      Date
   checkOutTime:     Date
   durationMinutes:  number
-  billableHours:    number     // Số giờ tính tiền (tối thiểu 1h, làm tròn lên 0.5h)
+  billableHours:    number     // Số giờ tính tiền — giờ thực tế chính xác, KHÔNG làm tròn lên (khớp BE pricing.service.ts)
   isPeak:           boolean
   isOvernight:      boolean    // Gửi xe qua đêm (> 12 giờ)
+  basePrice:        number     // Phí cơ bản — cộng 1 lần, khớp BE (basePrice + pricePerHour × giờ)
   normalHours:      number
   peakHours:        number
   normalFee:        number
@@ -45,22 +46,27 @@ export function calculateFee(
 ): FeeBreakdown {
   const { rules } = getCachedPricing()
   const pricing = rules.find((p) => p.vehicleType === session.vehicleType)
+  const basePrice      = pricing?.basePrice     ?? 0
   const rateNormal     = pricing?.normalRate    ?? 5_000
   const ratePeak       = pricing?.peakRate      ?? 8_000
   const rateOvernight  = pricing?.overnightRate ?? 20_000
 
   const checkIn        = new Date(session.checkInTime)
   const durationMs     = Math.max(0, checkOut.getTime() - checkIn.getTime())
-  const durationMinutes = Math.ceil(durationMs / 60_000)
-  const rawHours       = durationMinutes / 60
+  // 🐞 SỬA: trước đây làm tròn lên phút rồi làm tròn lên tối thiểu 1h/bội số 0.5h —
+  // khác hẳn công thức BE (pricing.service.ts dùng giờ thực tế, không làm tròn, có
+  // cộng basePrice) khiến số tiền ước tính trước khi thanh toán lệch xa số tiền BE
+  // thu thật. Dùng đúng giờ thực tế (không làm tròn) + cộng basePrice cho khớp BE.
+  const durationMinutes = Math.ceil(durationMs / 60_000)  // chỉ dùng để hiển thị "X phút", không dùng để tính tiền
+  const rawHours       = durationMs / (1000 * 60 * 60)
   const surcharge      = lostTicket ? LOST_TICKET_SURCHARGE : 0
 
-  // Qua đêm (> 12 giờ) → tính phí flat overnightRate
+  // Qua đêm (> 12 giờ) → tính phí flat overnightRate (không cộng basePrice — khớp BE)
   if (rawHours > 12) {
     return {
       checkInTime: checkIn, checkOutTime: checkOut,
       durationMinutes, billableHours: rawHours,
-      isPeak: false, isOvernight: true,
+      isPeak: false, isOvernight: true, basePrice,
       normalHours: 0, peakHours: 0,
       normalFee: 0, peakFee: 0,
       overnightFee: rateOvernight,
@@ -69,8 +75,7 @@ export function calculateFee(
     }
   }
 
-  // Làm tròn lên bội số 0.5 giờ, tối thiểu 1 giờ
-  const billableHours = Math.max(1, Math.ceil(rawHours * 2) / 2)
+  const billableHours = rawHours
 
   // Nếu giờ vào HOẶC giờ ra là cao điểm → toàn bộ tính giá cao điểm (đơn giản hoá)
   const isPeak = isPeakTime(checkIn) || isPeakTime(checkOut)
@@ -83,10 +88,10 @@ export function calculateFee(
   return {
     checkInTime: checkIn, checkOutTime: checkOut,
     durationMinutes, billableHours,
-    isPeak, isOvernight: false,
+    isPeak, isOvernight: false, basePrice,
     normalHours, peakHours,
     normalFee, peakFee, overnightFee: 0,
-    surcharge, total: normalFee + peakFee + surcharge,
+    surcharge, total: Math.round(basePrice + normalFee + peakFee + surcharge),
     rateNormal, ratePeak, rateOvernight,
   }
 }

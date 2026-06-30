@@ -40,8 +40,9 @@ const VEHICLE_LABELS: Record<string, string> = {
   car:       'Ô tô',
 }
 
+// 🐞 SỬA: làm tròn về số nguyên trước khi format — VND không có phần thập phân
 function fmt(n: number) {
-  return new Intl.NumberFormat('vi-VN').format(n) + ' ₫'
+  return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' ₫'
 }
 
 function availBarColor(pct: number) {

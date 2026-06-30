@@ -46,7 +46,8 @@ const PARKING_RULES = [
 ]
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-function fmt(n: number) { return new Intl.NumberFormat('vi-VN').format(n) + ' ₫' }
+// 🐞 SỬA: làm tròn về số nguyên trước khi format — VND không có phần thập phân
+function fmt(n: number) { return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' ₫' }
 
 function estimateFeeFromHours(
   vehicleType: VehicleType,
@@ -483,8 +484,14 @@ export default function DriverPricing() {
                   <div className="text-xs text-blue-600 space-y-0.5 border-t border-blue-100 pt-2">
                     <div className="flex justify-between">
                       <span>{VEHICLE_LABELS[calcVehicle]}</span>
-                      <span>{calcResult.billableHours}h tính tiền</span>
+                      <span>{calcResult.billableHours.toFixed(2)}h tính tiền</span>
                     </div>
+                    {!calcResult.isOvernight && calcResult.basePrice > 0 && (
+                      <div className="flex justify-between">
+                        <span>Phí cơ bản</span>
+                        <span>{fmt(calcResult.basePrice)}</span>
+                      </div>
+                    )}
                     {calcResult.isOvernight ? (
                       <div className="flex justify-between">
                         <span>Gói qua đêm</span>
@@ -492,12 +499,12 @@ export default function DriverPricing() {
                       </div>
                     ) : calcResult.isPeak ? (
                       <div className="flex justify-between">
-                        <span>Giá cao điểm × {calcResult.peakHours}h</span>
+                        <span>Giá cao điểm × {calcResult.peakHours.toFixed(2)}h</span>
                         <span>{fmt(calcResult.peakFee)}</span>
                       </div>
                     ) : (
                       <div className="flex justify-between">
-                        <span>Giá thường × {calcResult.normalHours}h</span>
+                        <span>Giá thường × {calcResult.normalHours.toFixed(2)}h</span>
                         <span>{fmt(calcResult.normalFee)}</span>
                       </div>
                     )}
