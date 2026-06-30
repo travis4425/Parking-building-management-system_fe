@@ -20,8 +20,8 @@ import {
 interface VehicleForm {
   name:        string
   description: string
-  maxWidth:    string    // cm — string để control input dễ hơn
-  maxHeight:   string    // cm
+  maxWidth:    string    // mét — string để control input dễ hơn
+  maxHeight:   string    // mét
 }
 
 type FormErrors = Partial<Record<'name' | 'maxWidth' | 'maxHeight', string>>
@@ -205,7 +205,7 @@ export default function VehicleManagement() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {['Tên loại xe', 'Mã', 'Mô tả', 'Kích thước tối đa (cm)', 'Tầng được phép', 'Thao tác'].map((h) => (
+                {['Tên loại xe', 'Mã', 'Mô tả', 'Kích thước tối đa (m)', 'Tầng được phép', 'Thao tác'].map((h) => (
                   <th key={h}
                     className="px-4 py-3 text-left font-semibold text-gray-600
                                text-xs uppercase tracking-wide whitespace-nowrap">
@@ -400,7 +400,7 @@ export default function VehicleManagement() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Kích thước tối đa (cm)
+                  Kích thước tối đa (m)
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   {DIM_FIELDS.map(({ key, label }) => (
