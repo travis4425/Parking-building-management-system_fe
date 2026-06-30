@@ -310,11 +310,12 @@ export default function QRScanner({ onScan, active }: QRScannerProps) {
         onChange={handleFileUpload}
       />
 
-      {/* Nút chuyển nhập thủ công + tải ảnh QR lên — luôn hiện khi đang active, kể cả
-          khi camera lỗi (permission/notfound/in_app_browser...) vì 2 cách này không cần camera */}
-      {!manualMode && active && (
+      {/* Nút tải ảnh QR lên — 🐞 SỬA: trước đây bị ẩn lúc manualMode=true (vd. khi
+          "Không tìm thấy camera" tự bật manualMode), nên luôn hiện khi đang active,
+          không phụ thuộc manualMode/camError vì cách này không cần camera */}
+      {active && (
         <div className="flex items-center gap-4">
-          {!camError && !starting && (
+          {!manualMode && !camError && !starting && (
             <button onClick={() => setManualMode(true)}
               className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors">
               <KeyboardIcon className="w-3.5 h-3.5" />
