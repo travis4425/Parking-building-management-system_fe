@@ -1,6 +1,6 @@
 // Component animation barrier cổng xe — CSS transform xoay cần lên/xuống khi nâng/hạ
+// Chỉ là hiệu ứng UI xác nhận hành động check-in/check-out thật, không gắn với thiết bị nào.
 import { cn } from '@/utils/cn'
-import { useIotStore } from '@/store/iotStore'
 
 // ─── Cần barrier (phần xoay) ─────────────────────────────────────────────────
 function BarrierArm({ open, compact = false }: { open: boolean; compact?: boolean }) {
@@ -78,46 +78,3 @@ export function BarrierGate({ open, label, lastOpened, compact = false }: Barrie
   )
 }
 
-// ─── Panel 2 barrier — đọc từ iotStore, dùng trên StaffDashboard ─────────────
-export default function BarrierStatusPanel() {
-  const barrierA = useIotStore((s) => s.barrierA)
-  const barrierB = useIotStore((s) => s.barrierB)
-
-  const anyOpen = barrierA.open || barrierB.open
-
-  return (
-    <div className={cn(
-      'bg-white rounded-xl border shadow-sm p-4 transition-colors duration-300',
-      anyOpen ? 'border-emerald-300 bg-emerald-50/30' : 'border-gray-200',
-    )}>
-      <div className="flex items-center gap-2 mb-4">
-        <span className={cn(
-          'w-2 h-2 rounded-full transition-colors duration-300',
-          anyOpen ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400',
-        )} />
-        <h3 className="text-sm font-semibold text-gray-800">Barrier cổng xe</h3>
-        {anyOpen && (
-          <span className="text-xs text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-medium">
-            Đang mở
-          </span>
-        )}
-      </div>
-
-      <div className="flex justify-around items-start gap-4">
-        <BarrierGate
-          open={barrierA.open}
-          label="Cổng A — Vào"
-          lastOpened={barrierA.lastOpenedAt}
-          compact
-        />
-        <div className="w-px h-24 bg-gray-100 self-center" />
-        <BarrierGate
-          open={barrierB.open}
-          label="Cổng B — Ra"
-          lastOpened={barrierB.lastOpenedAt}
-          compact
-        />
-      </div>
-    </div>
-  )
-}
