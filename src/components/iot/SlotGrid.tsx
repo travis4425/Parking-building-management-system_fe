@@ -1,9 +1,14 @@
-// SlotGrid — hiển thị lưới slot theo tầng, click để xem chi tiết, IoT animation khi slot đổi trạng thái
+// SlotGrid — hiển thị lưới slot theo tầng (dữ liệu thật từ BE), click để xem chi tiết,
+// highlight animation khi slot vừa được cập nhật
 import { useState, useEffect, useMemo } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { cn } from '@/utils/cn'
-import { slotsByFloor } from '@/hooks/useSlotSimulation'
 import type { ParkingSlot, SlotStatus } from '@/utils/types'
+
+// Lọc slot theo tầng
+function slotsByFloor(slots: ParkingSlot[], floor: number) {
+  return slots.filter((s) => s.floor === floor)
+}
 
 // ─── Màu sắc theo trạng thái ────────────────────────────────────────────────
 const STATUS_STYLES: Record<SlotStatus, string> = {
@@ -92,10 +97,10 @@ export default function SlotGrid({
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
         <div>
           <h3 className="font-semibold text-gray-800 text-sm">Bản đồ slot thời gian thực</h3>
-          <p className="text-xs text-gray-400 mt-0.5">IoT Simulation — cập nhật mỗi 5 giây</p>
+          <p className="text-xs text-gray-400 mt-0.5">Dữ liệu thật từ hệ thống — tự cập nhật mỗi 15 giây</p>
         </div>
         <div className="flex items-center gap-1.5 text-xs text-gray-400">
-          <RefreshCw className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '5s' }} />
+          <RefreshCw className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '15s' }} />
           <span>
             {lastUpdated.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </span>
@@ -143,7 +148,7 @@ export default function SlotGrid({
                 'transition-all duration-200 cursor-pointer',
                 'focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1',
                 STATUS_STYLES[slot.status],
-                // Highlight animation khi IoT cập nhật
+                // Highlight animation khi slot vừa được cập nhật từ BE
                 changedIds.has(slot.id) && 'ring-2 ring-white ring-offset-1 scale-110 shadow-lg',
                 slot.status === 'maintenance' && 'text-gray-400',
                 selectedSlot?.id === slot.id && 'ring-2 ring-blue-500 ring-offset-1 scale-105',
