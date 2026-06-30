@@ -1,16 +1,12 @@
-// Dashboard ca trực nhân viên — metric, cảnh báo IoT, trạng thái thiết bị + barrier live
-import { useEffect } from 'react'
+// Dashboard ca trực nhân viên — metric thật + cảnh báo thật (lấy từ BE qua alertStore)
 import { useNavigate } from 'react-router-dom'
 import {
-  AlertTriangle, CheckCircle, Clock, Cpu,
-  ParkingSquare, Car, ChevronRight, Camera, Wifi, WifiOff,
+  AlertTriangle, CheckCircle, Clock,
+  ParkingSquare, Car, ChevronRight, RefreshCw,
 } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
-import BarrierStatusPanel from '@/components/iot/BarrierStatus'
 import { useSlotStore } from '@/store/slotStore'
 import { useAlertStore, alertTypeLabel, alertTypeColor } from '@/store/alertStore'
-import { useIotStore }  from '@/store/iotStore'
-import { useAlertSimulation } from '@/hooks/useAlertSimulation'
 import { cn } from '@/utils/cn'
 import type { ParkingAlert } from '@/utils/types'
 
@@ -36,155 +32,13 @@ function AlertIcon({ type }: { type: ParkingAlert['type'] }) {
   return                                  <Car       className={`${cls} text-orange-500`} />
 }
 
-// ─── IoT Status Panel ────────────────────────────────────────────────────────
-// Hiển thị Camera LPR, Cảm biến slot, tổng quan online/offline
-function IotDevicePanel() {
-  const devices = useIotStore((s) => s.devices)
-
-  const cameras = devices.filter((d) => d.type === 'camera').sort((a, b) => (a.floor ?? 0) - (b.floor ?? 0))
-  const sensors = devices.filter((d) => d.type === 'sensor')
-
-  // Gom sensor theo tầng
-  const sensorByFloor = [1, 2, 3].map((floor) => {
-    const group = sensors.filter((d) => d.floor === floor)
-    const online = group.filter((d) => d.status === 'online').length
-    return { floor, total: group.length, online, allOk: online === group.length }
-  })
-
-  const totalOnline  = devices.filter((d) => d.status === 'online').length
-  const totalOffline = devices.filter((d) => d.status === 'offline').length
-
-  function StatusDot({ status }: { status: string }) {
-    return (
-      <span className={cn(
-        'inline-block w-2 h-2 rounded-full flex-shrink-0',
-        status === 'online'  ? 'bg-emerald-500' : 'bg-red-400',
-        status === 'online'  && 'animate-pulse',
-      )} />
-    )
-  }
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
-        <div className="flex items-center gap-2">
-          <Cpu className="w-4 h-4 text-blue-500" />
-          <span className="text-sm font-semibold text-gray-800">Trạng thái thiết bị IoT</span>
-        </div>
-        <div className="flex items-center gap-3 text-xs">
-          <span className="flex items-center gap-1 text-emerald-600 font-medium">
-            <Wifi    className="w-3.5 h-3.5" /> {totalOnline} online
-          </span>
-          {totalOffline > 0 && (
-            <span className="flex items-center gap-1 text-red-500 font-medium">
-              <WifiOff className="w-3.5 h-3.5" /> {totalOffline} offline
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* 3 cột: Camera | Cảm biến | Thông tin tóm tắt */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
-        {/* Camera LPR */}
-        <div className="px-5 py-4">
-          <div className="flex items-center gap-1.5 mb-3">
-            <Camera className="w-3.5 h-3.5 text-gray-500" />
-            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Camera LPR</span>
-          </div>
-          <ul className="space-y-2">
-            {cameras.map((cam) => (
-              <li key={cam.id} className="flex items-center justify-between text-sm">
-                <span className="text-gray-700">Tầng {cam.floor}</span>
-                <span className={cn(
-                  'flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full',
-                  cam.status === 'online'
-                    ? 'bg-emerald-50 text-emerald-700'
-                    : 'bg-red-50 text-red-600',
-                )}>
-                  <StatusDot status={cam.status} />
-                  {cam.status === 'online' ? 'Online' : 'Offline'}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Cảm biến slot */}
-        <div className="px-5 py-4">
-          <div className="flex items-center gap-1.5 mb-3">
-            <Cpu className="w-3.5 h-3.5 text-gray-500" />
-            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Cảm biến slot</span>
-          </div>
-          <ul className="space-y-2">
-            {sensorByFloor.map(({ floor, total, online, allOk }) => (
-              <li key={floor} className="flex items-center justify-between text-sm">
-                <span className="text-gray-700">Tầng {floor}</span>
-                <span className={cn(
-                  'flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full',
-                  allOk ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700',
-                )}>
-                  <StatusDot status={allOk ? 'online' : 'offline'} />
-                  {online}/{total} hoạt động
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Tóm tắt / ghi chú */}
-        <div className="px-5 py-4 flex flex-col justify-between">
-          <div className="flex items-center gap-1.5 mb-3">
-            <CheckCircle className="w-3.5 h-3.5 text-gray-500" />
-            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Tổng quan</span>
-          </div>
-          <div className="space-y-2 text-xs text-gray-500">
-            <div className="flex justify-between">
-              <span>Tổng thiết bị</span>
-              <span className="font-semibold text-gray-800">{devices.length}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Đang hoạt động</span>
-              <span className="font-semibold text-emerald-700">{totalOnline}</span>
-            </div>
-            {totalOffline > 0 && (
-              <div className="flex justify-between">
-                <span>Mất kết nối</span>
-                <span className="font-semibold text-red-600">{totalOffline}</span>
-              </div>
-            )}
-          </div>
-          <p className="text-xs text-gray-400 mt-3">
-            Cập nhật ngẫu nhiên mỗi 60 giây
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function StaffDashboard() {
   const navigate     = useNavigate()
   const slots        = useSlotStore((s) => s.slots)
   const alerts       = useAlertStore((s) => s.alerts)
   const resolveAlert = useAlertStore((s) => s.resolveAlert)
-
-  // Sinh cảnh báo IoT mỗi 30 giây
-  useAlertSimulation(30_000)
-
-  // Simulate 1 thiết bị offline ngẫu nhiên mỗi 60 giây, tự phục hồi sau 15 giây
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const { devices, setDeviceStatus } = useIotStore.getState()
-      const candidates = devices.filter((d) => d.type !== 'barrier' && d.status === 'online')
-      if (!candidates.length) return
-      const pick = candidates[Math.floor(Math.random() * candidates.length)]
-      setDeviceStatus(pick.id, 'offline')
-      setTimeout(() => useIotStore.getState().setDeviceStatus(pick.id, 'online'), 15_000)
-    }, 60_000)
-    return () => clearInterval(timer)
-  }, [])
+  const loadAlerts   = useAlertStore((s) => s.loadAlerts)
 
   const availableCount = slots.filter((s) => s.status === 'available').length
   const occupiedCount  = slots.filter((s) => s.status === 'occupied').length
@@ -255,23 +109,13 @@ export default function StaffDashboard() {
             )} />
           </div>
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Cảnh báo IoT</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Cảnh báo</p>
             <p className={cn('text-2xl font-bold mt-0.5',
               pendingAlerts.length > 0 ? 'text-red-600' : 'text-gray-900',
             )}>
               {pendingAlerts.length}
             </p>
           </div>
-        </div>
-      </div>
-
-      {/* ── IoT Device Status ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        <div className="lg:col-span-2">
-          <IotDevicePanel />
-        </div>
-        <div>
-          <BarrierStatusPanel />
         </div>
       </div>
 
@@ -287,16 +131,21 @@ export default function StaffDashboard() {
               </span>
             )}
           </div>
-          {pendingAlerts.length > 0 && (
-            <span className="text-xs text-gray-400">Cập nhật mỗi 30 giây</span>
-          )}
+          <button
+            onClick={() => loadAlerts()}
+            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600
+                       hover:bg-blue-50 px-2.5 py-1.5 rounded-lg transition-colors"
+            title="Tải lại danh sách cảnh báo"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Làm mới
+          </button>
         </div>
 
         {pendingAlerts.length === 0 ? (
           <div className="py-12 text-center">
             <CheckCircle className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
             <p className="text-sm font-medium text-gray-700">Không có cảnh báo nào</p>
-            <p className="text-xs text-gray-400 mt-1">Hệ thống IoT đang hoạt động bình thường</p>
+            <p className="text-xs text-gray-400 mt-1">Không có cảnh báo nào cần xử lý</p>
           </div>
         ) : (
           <ul className="divide-y divide-gray-100">
