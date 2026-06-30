@@ -11,7 +11,6 @@ import PageWrapper from '@/components/layout/PageWrapper'
 import QRScanner from '@/components/staff/QRScanner'
 import Receipt from '@/components/staff/Receipt'
 import { BarrierGate } from '@/components/iot/BarrierStatus'
-import { useIotStore }  from '@/store/iotStore'
 import { decodeToken }  from '@/utils/qrToken'
 import { useSessionStore } from '@/store/sessionStore'
 import { useSlotStore } from '@/store/slotStore'
@@ -110,10 +109,7 @@ export default function CheckOut() {
       updateSlot(session.slotId, 'available')
       setConfirmed(true)
       setBarrierOpen(true)
-
-      // Mở barrier cổng B khi xe ra, tự đóng sau 4 giây (simulate IoT)
-      useIotStore.getState().openBarrier('B')
-      setTimeout(() => useIotStore.getState().closeBarrier('B'), 4000)
+      setTimeout(() => setBarrierOpen(false), 4000)
 
       toast.success('Thanh toán thành công — Barrier đã mở')
       setTimeout(() => setShowReceipt(true), 1200)
