@@ -54,7 +54,6 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Phân quyền',  path: '/admin/permissions', icon: ShieldCheck     },
     { label: 'Cấu hình',    path: '/admin/config',      icon: Settings        },
     { label: 'Audit Log',   path: '/admin/audit',       icon: ScrollText      },
-    { label: 'Thiết bị IoT',path: '/admin/devices',     icon: Cpu             },
   ],
 }
 
