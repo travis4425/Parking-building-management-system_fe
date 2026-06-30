@@ -1,10 +1,10 @@
-// Dashboard quản lý — metric cards tổng quan + IoT slot grid realtime
+// Dashboard quản lý — metric cards tổng quan + bản đồ slot (dữ liệu thật từ BE)
 import { useEffect, useState } from 'react'
 import { ParkingSquare, Car, Banknote, AlertTriangle, TrendingUp } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import PageWrapper from '@/components/layout/PageWrapper'
 import SlotGrid from '@/components/iot/SlotGrid'
-import { useSlotSimulation } from '@/hooks/useSlotSimulation'
+import { useSlotLive } from '@/hooks/useSlotLive'
 import { useAlertStore } from '@/store/alertStore'
 import { fetchRevenueReport } from '@/api/reportsApi'
 
@@ -28,8 +28,8 @@ function formatVND(amount: number): string {
 }
 
 export default function ManagerDashboard() {
-  // Không truyền initialSlots — hook tự đọc từ slotStore (share state với SlotManagement)
-  const { slots, lastUpdated, changedIds, stats } = useSlotSimulation()
+  // Đọc slot thật từ BE, tự tải lại mỗi 15 giây (share state với SlotManagement)
+  const { slots, lastUpdated, changedIds, stats } = useSlotLive()
   const pendingAlerts = useAlertStore((s) => s.pendingCount())
 
   // Số liệu hôm nay — lấy thật từ BE (GET /reports/revenue?period=day)
@@ -102,10 +102,6 @@ export default function ManagerDashboard() {
               })}
             </span>
           </p>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg">
-          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-          <span className="text-xs font-medium text-emerald-700">IoT Online</span>
         </div>
       </div>
 
@@ -185,7 +181,7 @@ export default function ManagerDashboard() {
         </div>
       </div>
 
-      {/* ── IoT Slot Grid ── */}
+      {/* ── Bản đồ slot ── */}
       {/* 🐞 SỬA: bỏ floors={[1,2,3]} hardcode — để SlotGrid tự lấy tầng thật từ slots,
           không bỏ sót tầng -1 (Hầm B1, xe máy/xe đạp) */}
       <SlotGrid
