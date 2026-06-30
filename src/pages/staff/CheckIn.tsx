@@ -10,10 +10,10 @@ import {
 } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import LPRCamera from '@/components/staff/LPRCamera'
+import { BarrierGate } from '@/components/iot/BarrierStatus'
 import { useSlotStore } from '@/store/slotStore'
 import { useSessionStore } from '@/store/sessionStore'
 import { toast } from 'sonner'
-import { useIotStore } from '@/store/iotStore'
 import { generateToken } from '@/utils/qrToken'
 import { fetchEntryGates, type BeGate } from '@/api/gatesApi'
 import { fetchZoneSummary, type ZoneSummary } from '@/api/zonesApi'
@@ -207,6 +207,7 @@ export default function CheckIn() {
   const [session,     setSession]     = useState<ParkingSession | null>(null)
   const [modalOpen,   setModalOpen]   = useState(false)
   const [submitError, setSubmitError] = useState('')
+  const [barrierOpen, setBarrierOpen] = useState(false)
 
   // Clock tự động cập nhật mỗi giây
   const [now, setNow] = useState(new Date())
@@ -243,9 +244,9 @@ export default function CheckIn() {
 
       updateSlot(targetSlot.id, 'occupied')
 
-      // Mở barrier cổng A khi xe vào, tự đóng sau 4 giây (simulate IoT)
-      useIotStore.getState().openBarrier('A')
-      setTimeout(() => useIotStore.getState().closeBarrier('A'), 4000)
+      // Hiệu ứng mở barrier cổng A xác nhận xe đã vào, tự đóng lại sau 4 giây
+      setBarrierOpen(true)
+      setTimeout(() => setBarrierOpen(false), 4000)
 
       toast.success(`Tạo lượt gửi xe thành công! Mã: #${newSession.id.slice(0, 8).toUpperCase()}`)
       setSession(newSession)
@@ -406,6 +407,22 @@ export default function CheckIn() {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Barrier */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <div className="py-2">
+              <BarrierGate
+                open={barrierOpen}
+                label="Cổng A — Vào"
+                lastOpened={barrierOpen ? new Date().toISOString() : null}
+              />
+              {barrierOpen && (
+                <p className="text-xs text-emerald-600 text-center font-medium mt-2">
+                  ✓ Barrier đã mở — xe có thể vào
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Error submit */}
