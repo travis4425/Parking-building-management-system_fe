@@ -27,7 +27,6 @@ import AdminUsers        from '@/pages/admin/AdminUsers'
 import AdminPermissions  from '@/pages/admin/AdminPermissions'
 import AdminConfig       from '@/pages/admin/AdminConfig'
 import AdminAuditLog     from '@/pages/admin/AdminAuditLog'
-import AdminDevices      from '@/pages/admin/AdminDevices'
 import { useAuthStore, getHomeByRole } from '@/store/authStore'
 
 function RootRedirect() {
@@ -290,17 +289,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/admin/devices"
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <AppLayout pageTitle="Thiết bị IoT">
-                <AdminDevices />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-
         {/* Catch-all → redirect về root */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
