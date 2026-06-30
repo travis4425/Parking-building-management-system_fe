@@ -1,8 +1,8 @@
-// Component camera LPR — nhận diện biển số bằng Tesseract.js (offline, không API)
+// Component camera LPR — nhận diện biển số qua BE thật (Plate Recognizer), không còn Tesseract.js
 import { useState, useCallback, useRef } from 'react'
 import Webcam from 'react-webcam'
 import { Camera, Loader2, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react'
-import { recognizeLicensePlate } from '@/ai/lprRecognition'
+import { recognizePlate } from '@/api/aiApi'
 
 interface LPRCameraProps {
   plate:         string
@@ -46,8 +46,12 @@ export default function LPRCamera({ plate, onPlateChange }: LPRCameraProps) {
     onPlateChange('')
 
     try {
-      // Tesseract nhận full data URL hoặc raw base64
-      const result = await recognizeLicensePlate(screenshot)
+      const result = await recognizePlate(screenshot)
+      // BE không đọc được biển số (vd. ảnh mờ, hoặc chưa cấu hình API key) → để nhập tay
+      if (!result.licensePlate) {
+        setStatus('error')
+        return
+      }
       setConfidence(result.confidence)
       onPlateChange(result.licensePlate)
       setStatus('success')
@@ -88,27 +92,12 @@ export default function LPRCamera({ plate, onPlateChange }: LPRCameraProps) {
           </div>
         )}
 
-        {/* Khung ngắm biển số */}
-        {cameraReady && !cameraError && status !== 'loading' && (
-          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-            <div className="w-2/3 h-16 border-2 border-blue-400 rounded relative">
-              <span className="absolute -top-5 left-0 right-0 text-center text-xs text-blue-300">
-                Đặt biển số vào đây
-              </span>
-              <div className="absolute -top-0.5 -left-0.5 w-4 h-4 border-t-2 border-l-2 border-blue-300" />
-              <div className="absolute -top-0.5 -right-0.5 w-4 h-4 border-t-2 border-r-2 border-blue-300" />
-              <div className="absolute -bottom-0.5 -left-0.5 w-4 h-4 border-b-2 border-l-2 border-blue-300" />
-              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 border-b-2 border-r-2 border-blue-300" />
-            </div>
-          </div>
-        )}
-
-        {/* Overlay loading — Tesseract đang xử lý ảnh */}
+        {/* Overlay loading — đang gửi ảnh lên BE phân tích */}
         {status === 'loading' && (
           <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-3">
             <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
             <p className="text-sm text-white font-medium">Đang nhận diện...</p>
-            <p className="text-xs text-gray-300">Tesseract.js đang phân tích ảnh</p>
+            <p className="text-xs text-gray-300">Đang gửi ảnh lên hệ thống phân tích</p>
             <div className="w-2/3 h-1 bg-gray-700 rounded-full overflow-hidden">
               <div className="h-full bg-blue-400 rounded-full animate-pulse w-3/4" />
             </div>
@@ -142,7 +131,7 @@ export default function LPRCamera({ plate, onPlateChange }: LPRCameraProps) {
                 : <CheckCircle    className="w-4 h-4 text-emerald-600" />
               }
               <span className="text-xs text-gray-600">
-                Tesseract.js •{' '}
+                Plate Recognizer •{' '}
                 <span className={`font-bold ${lowConfidence ? 'text-amber-600' : 'text-emerald-700'}`}>
                   {confidence}%
                 </span>
