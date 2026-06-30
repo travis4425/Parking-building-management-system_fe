@@ -1,56 +1,24 @@
-// Trang cấu hình hệ thống — 4 nhóm: tòa nhà, vận hành, IoT, AI — lưu vào configStore + localStorage
+// Trang cấu hình hệ thống — 3 nhóm: tòa nhà, vận hành, AI — lưu vào configStore + localStorage
 import { useState } from 'react'
 import { toast } from 'sonner'
 import {
-  Building2, Settings, Cpu, Brain,
-  Save, RefreshCw, RotateCcw, Wifi, WifiOff,
+  Building2, Settings, Brain,
+  Save, RefreshCw, RotateCcw,
   Eye, EyeOff, Zap, AlertTriangle,
-  CheckCircle, Power, X,
+  CheckCircle, WifiOff, X,
 } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import { useConfigStore, CONFIG_DEFAULTS, type SystemConfig } from '@/store/configStore'
 import { useSlotStore } from '@/store/slotStore'
 import { geminiFlashText } from '@/ai/geminiClient'
 
-// ─── Kiểu IoT device (chỉ dùng trong trang này) ──────────────────────────────
-
-type DeviceType   = 'camera' | 'sensor' | 'barrier'
-type DeviceStatus = 'online' | 'offline'
-type PingState    = 'idle' | 'pinging' | 'ok' | 'timeout'
-
-interface CfgDevice {
-  id:       number
-  name:     string
-  type:     DeviceType
-  location: string
-  status:   DeviceStatus
-  ip:       string
-}
-
-const INITIAL_DEVICES: CfgDevice[] = [
-  { id: 1, name: 'Camera LPR Cổng A',   type: 'camera',  location: 'Cổng vào/ra A',      status: 'online',  ip: '10.0.1.10' },
-  { id: 2, name: 'Camera LPR Cổng B',   type: 'camera',  location: 'Cổng vào/ra B',      status: 'online',  ip: '10.0.1.11' },
-  { id: 3, name: 'Cảm biến tầng 1',     type: 'sensor',  location: 'Tầng 1 (24 slot)',   status: 'online',  ip: '10.0.2.1'  },
-  { id: 4, name: 'Cảm biến tầng 2',     type: 'sensor',  location: 'Tầng 2 (24 slot)',   status: 'online',  ip: '10.0.2.2'  },
-  { id: 5, name: 'Cảm biến tầng 3',     type: 'sensor',  location: 'Tầng 3 (24 slot)',   status: 'offline', ip: '10.0.2.3'  },
-  { id: 6, name: 'Barrier Cổng A',      type: 'barrier', location: 'Cổng A — Vào/Ra',    status: 'online',  ip: '10.0.3.1'  },
-  { id: 7, name: 'Barrier Cổng B',      type: 'barrier', location: 'Cổng B — Vào/Ra',    status: 'online',  ip: '10.0.3.2'  },
-]
-
-const DEVICE_TYPE_LABEL: Record<DeviceType, string> = {
-  camera:  'Camera LPR',
-  sensor:  'Cảm biến',
-  barrier: 'Barrier',
-}
-
 // ─── Cấu hình tab sidebar ─────────────────────────────────────────────────────
 
-type ConfigTab = 'building' | 'operations' | 'iot' | 'ai'
+type ConfigTab = 'building' | 'operations' | 'ai'
 
 const TABS: { id: ConfigTab; label: string; Icon: typeof Building2 }[] = [
   { id: 'building',    label: 'Thông tin tòa nhà',   Icon: Building2 },
   { id: 'operations',  label: 'Cấu hình vận hành',   Icon: Settings  },
-  { id: 'iot',         label: 'Thiết bị IoT',         Icon: Cpu       },
   { id: 'ai',          label: 'Cấu hình AI',          Icon: Brain     },
 ]
 
@@ -175,37 +143,7 @@ export default function AdminConfig() {
     setTimeout(() => setSavedSection(null), 2000)
   }
 
-  // ── IoT state ────────────────────────────────────────────────────────────
-  const [devices, setDevices]         = useState<CfgDevice[]>(INITIAL_DEVICES)
-  const [pingStates, setPingStates]   = useState<Record<number, PingState>>({})
-  const [restartTarget, setRestartTarget] = useState<number | null>(null)
-  const [restartingId, setRestartingId]   = useState<number | null>(null)
-  const [offlineFallback, setOfflineFallback] = useState(config.offlineFallbackMode)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
-
-  function handlePing(id: number) {
-    setPingStates(p => ({ ...p, [id]: 'pinging' }))
-    setTimeout(() => {
-      const dev = devices.find(d => d.id === id)
-      setPingStates(p => ({ ...p, [id]: dev?.status === 'online' ? 'ok' : 'timeout' }))
-    }, 1000)
-  }
-
-  function handleRestartConfirm() {
-    if (restartTarget === null) return
-    const id = restartTarget
-    setRestartTarget(null)
-    setRestartingId(id)
-    setTimeout(() => {
-      setDevices(prev => prev.map(d => d.id === id ? { ...d, status: 'online' } : d))
-      setRestartingId(null)
-    }, 3000)
-  }
-
-  function saveIot() {
-    updateConfig({ offlineFallbackMode: offlineFallback })
-    markSaved('iot')
-  }
 
   // ── AI state ─────────────────────────────────────────────────────────────
   const envKey    = (import.meta.env.VITE_GEMINI_API_KEY as string | undefined) ?? ''
@@ -397,145 +335,6 @@ export default function AdminConfig() {
             onClick={() => { updateConfig(ops); markSaved('ops') }}
           />
         </div>
-      </>
-    )
-  }
-
-  function IotSection() {
-    return (
-      <>
-        <SectionCard title="Trạng thái thiết bị">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  {['Thiết bị', 'Loại', 'Vị trí', 'IP', 'Trạng thái', 'Thao tác'].map(h => (
-                    <th key={h}
-                      className="py-2 pr-4 text-left text-xs font-semibold text-gray-500
-                                 uppercase tracking-wide whitespace-nowrap">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {devices.map(dev => {
-                  const ping      = pingStates[dev.id] ?? 'idle'
-                  const restarting = restartingId === dev.id
-
-                  return (
-                    <tr key={dev.id} className="hover:bg-gray-50/50">
-                      <td className="py-3 pr-4 font-medium text-gray-800 whitespace-nowrap">{dev.name}</td>
-                      <td className="py-3 pr-4 text-gray-500 text-xs">{DEVICE_TYPE_LABEL[dev.type]}</td>
-                      <td className="py-3 pr-4 text-gray-500 text-xs">{dev.location}</td>
-                      <td className="py-3 pr-4 font-mono text-xs text-gray-500">{dev.ip}</td>
-
-                      {/* Status */}
-                      <td className="py-3 pr-4">
-                        {restarting ? (
-                          <span className="flex items-center gap-1.5 text-xs text-blue-600">
-                            <RefreshCw size={12} className="animate-spin" /> Khởi động...
-                          </span>
-                        ) : dev.status === 'online' ? (
-                          <span className="flex items-center gap-1.5 text-xs font-medium text-green-600">
-                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /> Online
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1.5 text-xs font-medium text-red-500">
-                            <span className="w-2 h-2 bg-red-400 rounded-full" /> Offline
-                          </span>
-                        )}
-                        {ping !== 'idle' && !restarting && (
-                          <div className={`text-xs mt-0.5 ${
-                            ping === 'pinging' ? 'text-gray-400' :
-                            ping === 'ok'      ? 'text-green-500' : 'text-red-400'
-                          }`}>
-                            {ping === 'pinging' ? '⏳ Đang ping...' :
-                             ping === 'ok'      ? '✓ Online (12ms)' : '✗ Timeout'}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-3">
-                        <div className="flex gap-2">
-                          <button onClick={() => handlePing(dev.id)}
-                            disabled={ping === 'pinging' || restarting}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium
-                                       bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-40
-                                       transition-colors whitespace-nowrap">
-                            <Wifi size={11} /> Ping
-                          </button>
-                          <button onClick={() => setRestartTarget(dev.id)}
-                            disabled={restarting}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium
-                                       bg-orange-50 text-orange-600 hover:bg-orange-100 disabled:opacity-40
-                                       transition-colors whitespace-nowrap">
-                            <Power size={11} /> Restart
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Chế độ dự phòng">
-          <ToggleRow
-            label="Chế độ offline fallback" value={offlineFallback}
-            desc="Khi mất điện/mạng — nhân viên chuyển sang quy trình thủ công, không dùng cảm biến"
-            onChange={setOfflineFallback}
-          />
-          {offlineFallback && (
-            <div className="mt-3 flex items-start gap-2 text-xs text-orange-700 bg-orange-50
-                            border border-orange-200 rounded-lg px-3 py-2.5">
-              <AlertTriangle size={13} className="shrink-0 mt-0.5" />
-              <div>
-                <strong>Chế độ thủ công đang BẬT.</strong> Tất cả cảm biến và camera bị bỏ qua.
-                Nhân viên cần ghi nhận xe vào/ra thủ công trên sổ tay.
-              </div>
-            </div>
-          )}
-        </SectionCard>
-
-        <div className="flex justify-end">
-          <SaveButton saved={savedSection === 'iot'} label="Lưu cấu hình IoT" onClick={saveIot} />
-        </div>
-
-        {/* Confirm restart dialog */}
-        {restartTarget !== null && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
-              <div className="flex items-start gap-3 mb-5">
-                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
-                  <Power size={18} className="text-orange-600" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-800 mb-1">Khởi động lại thiết bị?</h3>
-                  <p className="text-sm text-gray-600">
-                    <strong>{devices.find(d => d.id === restartTarget)?.name}</strong> sẽ offline
-                    trong khoảng 3 giây trong quá trình khởi động lại.
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button onClick={() => setRestartTarget(null)}
-                  className="flex-1 border border-gray-300 rounded-lg py-2.5 text-sm font-medium
-                             text-gray-700 hover:bg-gray-50 transition-colors">
-                  Hủy
-                </button>
-                <button onClick={handleRestartConfirm}
-                  className="flex-1 bg-orange-600 text-white rounded-lg py-2.5 text-sm font-medium
-                             hover:bg-orange-700 transition-colors">
-                  Khởi động lại
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </>
     )
   }
@@ -747,7 +546,6 @@ export default function AdminConfig() {
                       setAiModel(CONFIG_DEFAULTS.geminiModel)
                       setLprThreshold(CONFIG_DEFAULTS.lprConfidenceThreshold)
                       setPeakPred(CONFIG_DEFAULTS.enablePeakPrediction)
-                      setOfflineFallback(CONFIG_DEFAULTS.offlineFallbackMode)
                       setShowResetConfirm(false)
                       toast.success('Đã đặt lại cấu hình về mặc định')
                     }}
@@ -773,7 +571,6 @@ export default function AdminConfig() {
         <div className="flex-1 min-w-0">
           {activeTab === 'building'   && BuildingSection()}
           {activeTab === 'operations' && OpsSection()}
-          {activeTab === 'iot'        && IotSection()}
           {activeTab === 'ai'         && AiSection()}
         </div>
       </div>
