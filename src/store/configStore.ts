@@ -20,9 +20,6 @@ export interface SystemConfig {
   allowBooking:             boolean  // Cho phép đặt chỗ trước
   enableAI:                 boolean  // Bật AI gợi ý slot (tắt → thuật toán đơn giản)
 
-  // ── IoT ──────────────────────────────────────────────────────────────────
-  offlineFallbackMode: boolean  // Chế độ thủ công khi mất mạng/điện
-
   // ── AI ───────────────────────────────────────────────────────────────────
   geminiApiKey:           string                               // Lưu để hiện trong UI (thực tế dùng env)
   geminiModel:            'gemini-2.0-flash' | 'gemini-2.0-flash-lite'
@@ -45,8 +42,6 @@ export const CONFIG_DEFAULTS: SystemConfig = {
   overtimeSurchargePercent: 20,
   allowBooking:             true,
   enableAI:                 true,
-
-  offlineFallbackMode: false,
 
   geminiApiKey:           '',
   geminiModel:            'gemini-2.0-flash',
