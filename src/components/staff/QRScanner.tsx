@@ -77,45 +77,67 @@ export default function QRScanner({ onScan, active }: QRScannerProps) {
     let isStarted     = false
     let cleanupCalled = false
 
+    // 🐞 SỬA: Safari (đặc biệt qua HTTP/IP nội bộ, không phải HTTPS hoặc localhost)
+    // không cấp `navigator.mediaDevices` — gọi getUserMedia khi đó throw lỗi ĐỒNG BỘ
+    // ngay trong html5-qrcode (không phải reject promise), nên .catch() ở dưới không
+    // bắt được → lỗi bay lên ngoài effect → React crash trắng cả màn hình (không có
+    // error boundary nào chặn trước đây). Kiểm tra hỗ trợ trước + bọc try/catch quanh
+    // cả lệnh start() để luôn hiện màn hình lỗi thân thiện thay vì crash trắng.
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCamError('other')
+      setStarting(false)
+      toast.error('Trình duyệt/kết nối này không hỗ trợ camera (cần HTTPS) — vui lòng nhập mã QR thủ công')
+      return
+    }
+
     let s: Html5Qrcode
     try {
       s = new Html5Qrcode(SCANNER_DIV_ID)
     } catch {
-       
+
       setCamError('other')
-       
+
       setStarting(false)
       return
     }
 
-    s.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 220, height: 130 } },
-      (decodedText: string) => {
-        if (calledRef.current) return
-        calledRef.current = true
-        playBeep()
-        setScanOk(true)
-        s.stop().catch(() => {}).finally(() => {
-          setTimeout(() => setScanOk(false), 600)
-          onScan(decodedText)
+    try {
+      s.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 220, height: 130 } },
+        (decodedText: string) => {
+          if (calledRef.current) return
+          calledRef.current = true
+          playBeep()
+          setScanOk(true)
+          s.stop().catch(() => {}).finally(() => {
+            setTimeout(() => setScanOk(false), 600)
+            onScan(decodedText)
+          })
+        },
+        () => {},
+      )
+        .then(() => {
+          isStarted = true
+          if (!cleanupCalled) setStarting(false)
+          else s.stop().catch(() => {})
         })
-      },
-      () => {},
-    )
-      .then(() => {
-        isStarted = true
-        if (!cleanupCalled) setStarting(false)
-        else s.stop().catch(() => {})
-      })
-      .catch((err: unknown) => {
-        if (!cleanupCalled) {
-          const type = classifyError(err)
-          setCamError(type)
-          setStarting(false)
-          if (type === 'permission') toast.error('Không thể truy cập camera — Vui lòng cấp quyền')
-        }
-      })
+        .catch((err: unknown) => {
+          if (!cleanupCalled) {
+            const type = classifyError(err)
+            setCamError(type)
+            setStarting(false)
+            if (type === 'permission') toast.error('Không thể truy cập camera — Vui lòng cấp quyền')
+          }
+        })
+    } catch (err) {
+      // Một số lỗi (vd. trên Safari) throw đồng bộ thay vì reject promise
+      if (!cleanupCalled) {
+        const type = classifyError(err)
+        setCamError(type)
+        setStarting(false)
+      }
+    }
 
     return () => {
       cleanupCalled = true
