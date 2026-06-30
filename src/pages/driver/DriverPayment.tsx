@@ -1,16 +1,18 @@
 // Kiosk thanh toán cho tài xế — quét QR vé / nhập biển số → tính phí → TT → sinh mã ra cổng
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { QRCodeCanvas } from 'qrcode.react'
 import {
   ScanLine, Search, Car, CreditCard, Banknote, QrCode,
   CheckCircle, AlertCircle, RefreshCw, ChevronRight,
-  X, Clock, ShieldCheck,
+  X, Clock, ShieldCheck, Loader2,
 } from 'lucide-react'
 import QRScanner from '@/components/staff/QRScanner'
 import { useSessionStore } from '@/store/sessionStore'
 import { usePaymentStore } from '@/store/paymentStore'
 import { useAuthStore } from '@/store/authStore'
+import { createVnpayPaymentUrl } from '@/api/paymentsApi'
+import { getSocket } from '@/lib/socket'
 import { calculateFee, formatDuration, type FeeBreakdown } from '@/utils/feeCalculator'
 import type { ParkingSession, PayMethod } from '@/utils/types'
 
@@ -27,8 +29,9 @@ type KioskStep =
   | 'confirmed'    // Đã thanh toán, hiển thị mã ra cổng
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+// 🐞 SỬA: làm tròn về số nguyên trước khi format — VND không có phần thập phân
 function fmt(n: number) {
-  return new Intl.NumberFormat('vi-VN').format(n) + ' ₫'
+  return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' ₫'
 }
 
 function fmtCD(secs: number) {
@@ -69,10 +72,13 @@ export default function DriverPayment() {
   const [fee,        setFee]        = useState<FeeBreakdown | null>(null)
   const [payMethod,  setPayMethod]  = useState<PayMethod | null>(null)
 
-  // ── QR payment countdown ─────────────────────────────────────────────────
-  const [qrKey,  setQrKey]  = useState(0)  // tăng để restart interval
-  const [qrSecs, setQrSecs] = useState(QR_SECS)
-  const [qrExp,  setQrExp]  = useState(false)
+  // ── QR payment (VNPay thật) ───────────────────────────────────────────────
+  const [qrKey,     setQrKey]     = useState(0)  // tăng để tạo lại link khi hết hạn
+  const [qrSecs,     setQrSecs]   = useState(QR_SECS)
+  const [qrExp,      setQrExp]    = useState(false)
+  const [qrLoading,  setQrLoading] = useState(false)
+  const [qrUrl,      setQrUrl]     = useState('')
+  const [qrErr,      setQrErr]     = useState('')
 
   useEffect(() => {
     if (step !== 'paying_qr') return
@@ -84,6 +90,39 @@ export default function DriverPayment() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (qrSecs === 0 && step === 'paying_qr') setQrExp(true)
   }, [qrSecs, step])
+
+  // Tạo link thanh toán VNPay thật mỗi khi bước vào màn QR (hoặc bấm "Tạo lại")
+  useEffect(() => {
+    if (step !== 'paying_qr' || !session || !fee) return
+    setQrLoading(true)
+    setQrUrl('')
+    setQrErr('')
+    createVnpayPaymentUrl(session.id, fee.total)
+      .then(setQrUrl)
+      .catch((err) => {
+        console.error('Lỗi tạo URL thanh toán VNPay:', err)
+        setQrErr('Không tạo được mã thanh toán, vui lòng thử lại hoặc chọn phương thức khác')
+      })
+      .finally(() => setQrLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, qrKey, session, fee])
+
+  // Nghe socket `payment:success` — VNPay báo IPN về BE xong thì tự hoàn tất, tài xế không cần bấm xác nhận
+  const confirmedRef = useRef(false)
+  useEffect(() => {
+    if (step !== 'paying_qr' || !session) return
+    confirmedRef.current = false
+    const socket = getSocket()
+    function onPaymentSuccess(payload: { sessionId: string }) {
+      if (payload?.sessionId === session!.id && !confirmedRef.current) {
+        confirmedRef.current = true
+        handleConfirmPayment()
+      }
+    }
+    socket.on('payment:success', onPaymentSuccess)
+    return () => { socket.off('payment:success', onPaymentSuccess) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, session])
 
   // ── Exit code countdown ──────────────────────────────────────────────────
   const [exitCode, setExitCode] = useState('')
@@ -129,6 +168,7 @@ export default function DriverPayment() {
     if (method === 'qr') {
       setQrSecs(QR_SECS)
       setQrExp(false)
+      setQrErr('')
       setQrKey((k) => k + 1)
       setStep('paying_qr')
     } else {
@@ -162,6 +202,7 @@ export default function DriverPayment() {
   function handleRetryQR() {
     setQrSecs(QR_SECS)
     setQrExp(false)
+    setQrErr('')
     setQrKey((k) => k + 1)
   }
 
@@ -169,7 +210,7 @@ export default function DriverPayment() {
     setStep('search'); setScanActive(true); setPlateInput(''); setLookupErr('')
     setSession(null);  setFee(null);        setPayMethod(null)
     setExitCode('');   setExitSecs(EXIT_SECS); setExitExp(false)
-    setQrSecs(QR_SECS); setQrExp(false)
+    setQrSecs(QR_SECS); setQrExp(false); setQrUrl(''); setQrLoading(false); setQrErr('')
   }
 
   // ── Confirmed — full-width success view ──────────────────────────────────
@@ -435,33 +476,29 @@ export default function DriverPayment() {
                 )}
               </div>
 
-              {/* Payment QR */}
+              {/* Payment QR — link VNPay thật, tự hoàn tất khi BE nhận IPN báo thanh toán xong */}
               <div className={`flex flex-col items-center gap-3 transition-opacity ${qrExp ? 'opacity-25 pointer-events-none' : ''}`}>
-                <p className="text-xs text-gray-500">Quét bằng app ngân hàng hoặc ví điện tử</p>
-                <div className="bg-white p-3 rounded-2xl shadow-inner border border-gray-100">
-                  <QRCodeCanvas
-                    value={`PARKINGOS:PAY:${session.id}:${fee.total}:${qrKey}`}
-                    size={200}
-                    level="M"
-                    includeMargin={false}
-                  />
-                </div>
-                <p className="text-xl font-bold text-blue-600">{fmt(fee.total)}</p>
-                <div className="flex gap-2 flex-wrap justify-center">
-                  {['VNPay', 'MoMo', 'ZaloPay', 'Agribank', 'VCB'].map((p) => (
-                    <span key={p} className="text-xs px-2.5 py-1 bg-gray-100 rounded-full text-gray-500">{p}</span>
-                  ))}
-                </div>
+                {qrLoading ? (
+                  <div className="flex flex-col items-center gap-2 py-8 text-gray-400">
+                    <Loader2 className="w-7 h-7 animate-spin" />
+                    <p className="text-xs">Đang tạo mã thanh toán VNPay...</p>
+                  </div>
+                ) : qrUrl ? (
+                  <>
+                    <p className="text-xs text-gray-500">Quét bằng app ngân hàng hoặc VNPay</p>
+                    <div className="bg-white p-3 rounded-2xl shadow-inner border border-gray-100">
+                      <QRCodeCanvas value={qrUrl} size={200} level="M" includeMargin={false} />
+                    </div>
+                    <p className="text-xl font-bold text-blue-600">{fmt(fee.total)}</p>
+                    <p className="text-xs text-amber-600 flex items-center gap-1.5">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Đang chờ thanh toán — tự động hoàn tất, không cần bấm xác nhận
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-red-500 py-6">{qrErr || 'Không tạo được mã thanh toán'}</p>
+                )}
               </div>
-
-              <button
-                onClick={handleConfirmPayment}
-                disabled={qrExp}
-                className="w-full py-3.5 rounded-xl bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white font-semibold transition-colors flex items-center justify-center gap-2"
-              >
-                <CheckCircle className="w-5 h-5" />
-                Xác nhận đã thanh toán
-              </button>
             </div>
           )}
 
