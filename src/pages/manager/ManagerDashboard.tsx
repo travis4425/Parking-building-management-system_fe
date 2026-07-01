@@ -28,7 +28,7 @@ function formatVND(amount: number): string {
 
 export default function ManagerDashboard() {
   // Đọc slot thật từ BE, tự tải lại mỗi 15 giây (share state với SlotManagement)
-  const { stats } = useSlotLive()
+  const { lastUpdated, stats } = useSlotLive()
   const pendingAlerts = useAlertStore((s) => s.pendingCount())
 
   // Số liệu hôm nay — lấy thật từ BE (GET /reports/revenue?period=day)
