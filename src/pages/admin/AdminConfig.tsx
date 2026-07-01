@@ -434,25 +434,6 @@ export default function AdminConfig() {
           />
         </SectionCard>
 
-        {/* Thống kê AI hôm nay */}
-        <SectionCard title="Thống kê AI hôm nay">
-          <div className="grid grid-cols-3 gap-4 text-center">
-            {[
-              { label: 'Số lần gọi API', value: '23', color: 'text-blue-600' },
-              { label: 'Token đã dùng',  value: '14.230', color: 'text-orange-600' },
-              { label: 'Token còn lại',  value: '985.770', color: 'text-green-600' },
-            ].map(stat => (
-              <div key={stat.label} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                <div className={`text-xl font-bold ${stat.color}`}>{stat.value}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-gray-400 mt-3">
-            ※ Số liệu mock — tracking thực tế cần backend middleware
-          </p>
-        </SectionCard>
-
         {/* Test kết nối */}
         <SectionCard title="Kiểm tra kết nối AI">
           <div className="flex items-center gap-3 flex-wrap">
