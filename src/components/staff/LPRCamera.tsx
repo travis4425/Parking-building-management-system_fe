@@ -7,6 +7,8 @@ import { recognizePlate } from '@/api/aiApi'
 interface LPRCameraProps {
   plate:         string
   onPlateChange: (plate: string) => void
+  // Xe đạp thường không có biển số chính thức — đánh dấu để hiển thị field là tuỳ chọn
+  plateOptional?: boolean
 }
 
 const VIDEO_CONSTRAINTS: MediaStreamConstraints['video'] = {
@@ -19,7 +21,7 @@ type DetectStatus = 'idle' | 'loading' | 'success' | 'error'
 
 const LOW_CONFIDENCE_THRESHOLD = 60  // dưới 60% → cảnh báo nhưng vẫn hiện kết quả
 
-export default function LPRCamera({ plate, onPlateChange }: LPRCameraProps) {
+export default function LPRCamera({ plate, onPlateChange, plateOptional }: LPRCameraProps) {
   const webcamRef     = useRef<Webcam>(null)
   const plateInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef  = useRef<HTMLInputElement>(null)
@@ -216,20 +218,24 @@ export default function LPRCamera({ plate, onPlateChange }: LPRCameraProps) {
       {/* Input biển số — cho phép sửa tay */}
       <div className="space-y-1">
         <label className="block text-xs font-medium text-gray-600 uppercase tracking-wide">
-          Biển số xe
+          Biển số xe {plateOptional && <span className="text-gray-400 font-normal">(tuỳ chọn)</span>}
         </label>
         <input
           ref={plateInputRef}
           type="text"
           value={plate}
           onChange={(e) => onPlateChange(e.target.value.toUpperCase())}
-          placeholder="Ví dụ: 51G-123.45"
+          placeholder={plateOptional ? 'Xe đạp thường không có biển số — có thể để trống' : 'Ví dụ: 51G-123.45'}
           className="w-full px-3 py-2.5 text-base font-mono font-semibold tracking-wider
                      rounded-xl border border-gray-300 focus:outline-none
                      focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
                      bg-white placeholder:font-normal placeholder:tracking-normal"
         />
-        <p className="text-xs text-gray-400">Có thể sửa trực tiếp nếu nhận diện chưa đúng</p>
+        <p className="text-xs text-gray-400">
+          {plateOptional
+            ? 'Để trống nếu xe không có biển số — hệ thống sẽ tự cấp mã quản lý'
+            : 'Có thể sửa trực tiếp nếu nhận diện chưa đúng'}
+        </p>
       </div>
     </div>
   )
