@@ -219,7 +219,9 @@ export default function CheckIn() {
   async function handleCreateSession() {
     setSubmitError('')
 
-    if (!plate.trim()) {
+    // Xe đạp thường không có biển số chính thức nên không bắt buộc nhập —
+    // hệ thống (BE) sẽ tự sinh mã quản lý nội bộ nếu để trống.
+    if (!plate.trim() && vehicleType !== 'bicycle') {
       setSubmitError('Vui lòng nhận diện hoặc nhập biển số xe.')
       return
     }
@@ -237,7 +239,7 @@ export default function CheckIn() {
     try {
       const newSession = await checkInSession({
         slotId:       targetSlot.id,
-        licensePlate: plate.trim().toUpperCase(),
+        licensePlate: plate.trim() ? plate.trim().toUpperCase() : undefined,
         vehicleType,
         gateInId:     entryGate || undefined,
       })
@@ -288,7 +290,7 @@ export default function CheckIn() {
             </div>
             <h2 className="font-semibold text-gray-900">Nhận diện biển số (LPR)</h2>
           </div>
-          <LPRCamera plate={plate} onPlateChange={setPlate} />
+          <LPRCamera plate={plate} onPlateChange={setPlate} plateOptional={vehicleType === 'bicycle'} />
         </div>
 
         {/* ── CỘT PHẢI: Form + AI ── */}
