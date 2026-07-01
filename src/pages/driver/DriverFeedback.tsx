@@ -25,26 +25,9 @@ const ISSUE_OPTS: { val: IssueType; label: string }[] = [
   { val: 'other',        label: 'Khác'              },
 ]
 
-const MOCK_TICKETS: Ticket[] = [
-  {
-    code: 'TK-A3F9K', type: 'wrong_fee', typeLabel: 'Sai phí',
-    date: '2026-05-28', status: 'resolved',
-    description: 'Bị tính giá cao điểm lúc 14:00, trong khi đây là giờ bình thường.',
-  },
-  {
-    code: 'TK-B7X2P', type: 'lost_ticket', typeLabel: 'Mất thẻ QR',
-    date: '2026-05-25', status: 'processing',
-    description: 'Mất vé QR khi rời xe, nhờ hỗ trợ ra cổng.',
-  },
-  {
-    code: 'TK-C5M8Q', type: 'slot_taken', typeLabel: 'Slot bị chiếm',
-    date: '2026-05-20', status: 'resolved',
-    description: 'Xe khác đỗ vào slot A-07 mặc dù tôi đã đặt trước hợp lệ.',
-  },
-]
-
 function fmt(n: number) { return new Intl.NumberFormat('vi-VN').format(n) + ' ₫' }
-function genCode()       { return `TK-${Math.random().toString(36).slice(2, 7).toUpperCase()}` }
+// Sinh mã ticket từ timestamp — không dùng Math.random()
+function genCode()       { return `TK-${Date.now().toString(36).toUpperCase().slice(-5)}` }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function DriverFeedback() {
@@ -62,7 +45,7 @@ export default function DriverFeedback() {
   const [previewUrl,    setPreviewUrl]    = useState<string | null>(null)
   const [submitted,     setSubmitted]     = useState(false)
   const [ticketCode,    setTicketCode]    = useState('')
-  const [tickets,       setTickets]       = useState<Ticket[]>(MOCK_TICKETS)
+  const [tickets,       setTickets]       = useState<Ticket[]>([])
   const [submitting,    setSubmitting]    = useState(false)
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -79,8 +62,6 @@ export default function DriverFeedback() {
   async function handleSubmit() {
     if (!description.trim()) return
     setSubmitting(true)
-    // Giả lập delay gửi
-    await new Promise((r) => setTimeout(r, 800))
 
     const code = genCode()
     const issueLabel = ISSUE_OPTS.find((o) => o.val === issueType)?.label ?? issueType
@@ -213,7 +194,7 @@ export default function DriverFeedback() {
                     </label>
                     <input
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-400"
-                      placeholder="VD: sess-mock-004"
+                      placeholder="VD: abc12345..."
                       value={sessionId}
                       onChange={(e) => setSessionId(e.target.value)}
                     />
