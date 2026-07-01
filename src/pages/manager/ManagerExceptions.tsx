@@ -677,7 +677,7 @@ export default function ManagerExceptions() {
               </div>
             )}
 
-            {/* Ảnh xác minh (mock placeholder) */}
+            {/* Ảnh xác minh — camera chưa tích hợp */}
             <div>
               <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1">
                 <Image className="w-3.5 h-3.5" /> Ảnh xác minh
@@ -689,7 +689,7 @@ export default function ManagerExceptions() {
                                h-24 flex flex-col items-center justify-center gap-1 text-gray-400">
                     <Image className="w-6 h-6" />
                     <p className="text-xs">{label}</p>
-                    <p className="text-xs text-gray-300">mock placeholder</p>
+                    <p className="text-xs text-gray-300">Chưa có camera</p>
                   </div>
                 ))}
               </div>

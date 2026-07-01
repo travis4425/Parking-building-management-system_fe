@@ -298,7 +298,7 @@ export default function StaffExceptions() {
             </div>
           </div>
 
-          {/* Mock camera LPR */}
+          {/* Camera LPR — hiển thị biển số ghi nhận lúc xe vào (camera chưa tích hợp) */}
           <div
             className="bg-gray-900 rounded-xl overflow-hidden relative flex items-center justify-center"
             style={{ minHeight: 200 }}
