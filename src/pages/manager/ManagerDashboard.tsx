@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import { ParkingSquare, Car, Banknote, AlertTriangle, TrendingUp } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import PageWrapper from '@/components/layout/PageWrapper'
-import SlotGrid from '@/components/iot/SlotGrid'
 import { useSlotLive } from '@/hooks/useSlotLive'
 import { useAlertStore } from '@/store/alertStore'
 import { fetchRevenueReport } from '@/api/reportsApi'
@@ -29,7 +28,7 @@ function formatVND(amount: number): string {
 
 export default function ManagerDashboard() {
   // Đọc slot thật từ BE, tự tải lại mỗi 15 giây (share state với SlotManagement)
-  const { slots, lastUpdated, changedIds, stats } = useSlotLive()
+  const { stats } = useSlotLive()
   const pendingAlerts = useAlertStore((s) => s.pendingCount())
 
   // Số liệu hôm nay — lấy thật từ BE (GET /reports/revenue?period=day)
@@ -181,14 +180,6 @@ export default function ManagerDashboard() {
         </div>
       </div>
 
-      {/* ── Bản đồ slot ── */}
-      {/* 🐞 SỬA: bỏ floors={[1,2,3]} hardcode — để SlotGrid tự lấy tầng thật từ slots,
-          không bỏ sót tầng -1 (Hầm B1, xe máy/xe đạp) */}
-      <SlotGrid
-        slots={slots}
-        lastUpdated={lastUpdated}
-        changedIds={changedIds}
-      />
     </PageWrapper>
   )
 }
