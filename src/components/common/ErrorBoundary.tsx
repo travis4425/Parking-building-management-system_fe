@@ -15,8 +15,12 @@ interface State {
 export default class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null }
 
-  static getDerivedStateFromError(error: Error): State {
-    return { error }
+  static getDerivedStateFromError(error: unknown): State {
+    // 🐞 SỬA: một số lỗi (đặc biệt từ webview trong-app như Zalo) throw ra string
+    // hoặc object thường, không phải Error thật → error.message sẽ là undefined,
+    // khiến ô hiển thị lỗi trống trơn không có thông tin gì để debug.
+    const normalized = error instanceof Error ? error : new Error(String(error))
+    return { error: normalized }
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
