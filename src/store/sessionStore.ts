@@ -15,7 +15,8 @@ interface SessionStore {
   // Check-in thật qua BE — trả về session đã tạo (đã map sang FE shape)
   checkInSession: (data: {
     slotId: string
-    licensePlate: string
+    // Tuỳ chọn — xe đạp thường không có biển số chính thức, để trống thì BE tự sinh mã quản lý
+    licensePlate?: string
     vehicleType: VehicleType
     gateInId?: string
   }) => Promise<ParkingSession>

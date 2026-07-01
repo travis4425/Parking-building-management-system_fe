@@ -16,7 +16,8 @@ export async function fetchSessionById(id: string): Promise<ParkingSession> {
 
 export interface CheckInPayload {
   slotId: string
-  licensePlate: string
+  // Tuỳ chọn — xe đạp thường không có biển số chính thức, để trống thì BE tự sinh mã quản lý
+  licensePlate?: string
   vehicleTypeId: string
   gateInId?: string
 }
