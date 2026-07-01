@@ -40,8 +40,9 @@ function fmtCD(secs: number) {
   return `${m}:${s}`
 }
 
-function genExitCode() {
-  return `EXIT-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+function genExitCode(sessionId: string) {
+  // Dùng 6 ký tự cuối của sessionId (không chứa dấu gạch) làm mã ra cổng — deterministc, không random
+  return `EXIT-${sessionId.replace(/-/g, '').slice(-6).toUpperCase()}`
 }
 
 const VEHICLE_LABELS: Record<string, string> = {
@@ -192,7 +193,7 @@ export default function DriverPayment() {
       staffId:         user?.id   ?? 'kiosk',
       staffName:       user?.name ?? 'Kiosk tự động',
     })
-    setExitCode(genExitCode())
+    setExitCode(genExitCode(session.id))
     setExitSecs(EXIT_SECS)
     setExitExp(false)
     setStep('confirmed')
