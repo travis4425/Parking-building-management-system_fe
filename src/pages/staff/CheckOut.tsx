@@ -13,6 +13,7 @@ import Receipt from '@/components/staff/Receipt'
 import { BarrierGate } from '@/components/iot/BarrierStatus'
 import { decodeToken }  from '@/utils/qrToken'
 import { useSessionStore } from '@/store/sessionStore'
+import { fetchSessionById } from '@/api/sessionsApi'
 import { useSlotStore } from '@/store/slotStore'
 import { calculateFee, formatDuration, LOST_TICKET_SURCHARGE, type FeeBreakdown } from '@/utils/feeCalculator'
 import type { ParkingSession, PayMethod } from '@/utils/types'
@@ -71,23 +72,40 @@ export default function CheckOut() {
     setScanActive(false)
   }
 
-  function handleQRScan(text: string) {
+  // 🐞 SỬA: handleQRScan bất đồng bộ — khi không tìm thấy session trong local store
+  // (vd. vừa vào trang chưa load, hoặc session được tạo ở tab/máy khác), gọi thẳng
+  // BE để lấy session theo sessionId decode từ PKG token thay vì báo "không tìm thấy".
+  async function handleQRScan(text: string) {
     setScanActive(false)
-    // Thử decode PKG token trước; nếu hợp lệ dùng sessionId để tra cứu
     const decoded = decodeToken(text)
+
     if (decoded.ok) {
-      const sess = findByQR(text) ?? sessions.find((s) => s.id === decoded.sessionId)
-      if (sess && sess.status !== 'active') {
-        toast.error('Mã QR không hợp lệ hoặc đã hết hiệu lực')
-        setScanActive(true)
-        return
+      // 1. Thử local store trước (nhanh hơn)
+      let sess = sessions.find((s) => s.id === decoded.sessionId && s.status === 'active')
+
+      // 2. Không có trong store → fetch thẳng từ BE theo sessionId
+      if (!sess) {
+        try {
+          const remote = await fetchSessionById(decoded.sessionId)
+          if (remote.status !== 'active') {
+            toast.error('Mã QR không hợp lệ hoặc đã hết hiệu lực')
+            setScanActive(true)
+            return
+          }
+          sess = remote
+        } catch {
+          toast.error('Không tìm thấy lượt gửi xe — mã QR có thể đã hết hiệu lực')
+          setScanActive(true)
+          return
+        }
       }
+
       applySession(sess)
     } else if (decoded.reason === 'invalid_checksum') {
       toast.error('Mã QR không hợp lệ hoặc đã hết hiệu lực')
       setScanActive(true)
     } else {
-      // Không phải PKG format — thử exact match (hỗ trợ QR cũ dạng UUID)
+      // Không phải PKG format — thử exact match UUID (hỗ trợ QR cũ)
       applySession(findByQR(text))
     }
   }
