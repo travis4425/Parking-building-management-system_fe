@@ -112,8 +112,9 @@ export default function CheckOut() {
       if (!sess) {
         try {
           const remote = await fetchSessionById(decoded.sessionId)
-          if (remote.status !== 'active') {
-            toast.error('Mã QR không hợp lệ hoặc đã hết hiệu lực')
+          // Chấp nhận cả PAYMENT_PENDING — có thể checkOutSession đã gọi nhưng payment chưa xong
+          if (remote.status !== 'active' && remote.status !== 'payment_pending') {
+            toast.error('Phiên đỗ xe này đã kết thúc')
             setScanActive(true)
             return
           }
@@ -134,7 +135,7 @@ export default function CheckOut() {
       if (UUID_RE.test(text.trim())) {
         try {
           const remote = await fetchSessionById(text.trim().toLowerCase())
-          if (remote.status === 'active') {
+          if (remote.status === 'active' || remote.status === 'payment_pending') {
             applySession(remote)
           } else {
             toast.error('Phiên đỗ xe này đã kết thúc')

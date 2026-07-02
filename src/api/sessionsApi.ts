@@ -14,13 +14,19 @@ export async function fetchSessionById(id: string): Promise<ParkingSession> {
   return mapSession(res.data.data)
 }
 
-// Tìm session ACTIVE theo biển số — dùng khi tra cứu check-out mà local store không có
+// Tìm session chưa hoàn tất theo biển số — chấp nhận cả ACTIVE và PAYMENT_PENDING
+// (PAYMENT_PENDING xảy ra khi checkOutSession đã được gọi nhưng payment chưa hoàn tất)
 export async function fetchActiveSessionByPlate(plate: string): Promise<ParkingSession | null> {
   const res = await apiClient.get('/sessions', {
-    params: { licensePlate: plate.trim().toUpperCase(), status: 'active', limit: 1 },
+    params: { licensePlate: plate.trim().toUpperCase(), limit: 5 },
   })
   const list = (res.data.data as any[]) ?? []
-  return list.length > 0 ? mapSession(list[0]) : null
+  // Ưu tiên ACTIVE, fallback sang PAYMENT_PENDING
+  const found = list.find((s: any) => {
+    const st = (s.status ?? '').toUpperCase()
+    return st === 'ACTIVE' || st === 'PAYMENT_PENDING'
+  })
+  return found ? mapSession(found) : null
 }
 
 export interface CheckInPayload {
