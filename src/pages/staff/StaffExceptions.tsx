@@ -56,6 +56,7 @@ export default function StaffExceptions() {
   const [lqSession,  setLQSession]  = useState<ParkingSession | null>(null)
   const [lqSearched, setLQSearched] = useState(false)
   const [lqDone,     setLQDone]     = useState(false)
+  const [lqPhoto,    setLQPhoto]    = useState<string | null>(null)  // Ảnh xác minh tải lên thủ công
 
   // --- Tab 2: Sai biển số ---
   const [wpOldPlate, setWPOldPlate] = useState('')
@@ -298,27 +299,58 @@ export default function StaffExceptions() {
             </div>
           </div>
 
-          {/* Camera LPR — hiển thị biển số ghi nhận lúc xe vào (camera chưa tích hợp) */}
+          {/* Camera LPR — staff tải ảnh thủ công khi chưa có camera tích hợp */}
           <div
             className="bg-gray-900 rounded-xl overflow-hidden relative flex items-center justify-center"
             style={{ minHeight: 200 }}
           >
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4">
-              <CameraOff className="w-10 h-10 text-gray-600" />
-              <p className="text-gray-500 text-sm text-center">
-                Camera LPR — Ảnh chụp biển số lúc xe vào
-              </p>
-              {lqSession && (
-                <div className="bg-yellow-400/20 border border-yellow-400/40 rounded-lg px-5 py-3 text-center">
-                  <p className="text-yellow-300 font-mono font-bold text-xl tracking-wider">
-                    {lqSession.vehiclePlate}
-                  </p>
-                  <p className="text-yellow-400/70 text-xs mt-1">
-                    Ghi nhận lúc {formatTime(lqSession.checkInTime)}
-                  </p>
-                </div>
-              )}
-            </div>
+            {lqPhoto ? (
+              <>
+                <img src={lqPhoto} alt="Ảnh xác minh" className="w-full h-full object-cover" />
+                <button
+                  onClick={() => setLQPhoto(null)}
+                  className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1
+                             hover:bg-black/80 transition-colors text-xs px-2"
+                >Xóa ảnh</button>
+                {lqSession && (
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2
+                                  bg-black/60 rounded-lg px-4 py-2 text-center">
+                    <p className="text-yellow-300 font-mono font-bold text-lg tracking-wider">
+                      {lqSession.vehiclePlate}
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4">
+                <CameraOff className="w-10 h-10 text-gray-600" />
+                <p className="text-gray-500 text-sm text-center">
+                  Camera LPR — Ảnh chụp biển số lúc xe vào
+                </p>
+                {lqSession && (
+                  <div className="bg-yellow-400/20 border border-yellow-400/40 rounded-lg px-5 py-3 text-center">
+                    <p className="text-yellow-300 font-mono font-bold text-xl tracking-wider">
+                      {lqSession.vehiclePlate}
+                    </p>
+                    <p className="text-yellow-400/70 text-xs mt-1">
+                      Ghi nhận lúc {formatTime(lqSession.checkInTime)}
+                    </p>
+                  </div>
+                )}
+                <label className="cursor-pointer mt-1">
+                  <input type="file" accept="image/*" capture="environment" className="sr-only"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      if (f) setLQPhoto(URL.createObjectURL(f))
+                    }} />
+                  <span className="text-xs text-gray-500 border border-gray-600 rounded-lg
+                                   px-3 py-1.5 hover:border-gray-400 hover:text-gray-300
+                                   transition-colors cursor-pointer">
+                    Tải ảnh xác minh
+                  </span>
+                </label>
+              </div>
+            )}
           </div>
 
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">

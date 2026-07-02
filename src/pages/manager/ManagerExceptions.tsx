@@ -151,6 +151,8 @@ export default function ManagerExceptions() {
   const [noteDraft,    setNoteDraft]    = useState('')
   // Overtime sessions đang monitoring
   const [monitoredIds, setMonitoredIds] = useState<Set<string>>(new Set())
+  // Ảnh xác minh tải lên thủ công — lưu theo exceptionId (local, chưa persist lên server)
+  const [verifyImages, setVerifyImages] = useState<Record<string, { inGate?: string; zone?: string }>>({})
 
   // Realtime tick mỗi giây cho countdown quá hạn
   useEffect(() => {
@@ -677,21 +679,50 @@ export default function ManagerExceptions() {
               </div>
             )}
 
-            {/* Ảnh xác minh — camera chưa tích hợp */}
+            {/* Ảnh xác minh — staff tải lên thủ công (camera chưa tích hợp) */}
             <div>
               <p className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1">
                 <Image className="w-3.5 h-3.5" /> Ảnh xác minh
               </p>
               <div className="grid grid-cols-2 gap-2">
-                {['Camera vào', 'Camera khu vực'].map((label) => (
-                  <div key={label}
-                    className="bg-gray-100 border border-dashed border-gray-300 rounded-xl
-                               h-24 flex flex-col items-center justify-center gap-1 text-gray-400">
-                    <Image className="w-6 h-6" />
-                    <p className="text-xs">{label}</p>
-                    <p className="text-xs text-gray-300">Chưa có camera</p>
-                  </div>
-                ))}
+                {(['inGate', 'zone'] as const).map((key) => {
+                  const label = key === 'inGate' ? 'Camera vào' : 'Camera khu vực'
+                  const imgSrc = verifyImages[ex.id]?.[key]
+                  return (
+                    <label key={key} className="cursor-pointer group relative">
+                      <input
+                        type="file" accept="image/*" capture="environment"
+                        className="sr-only"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          const url = URL.createObjectURL(file)
+                          setVerifyImages((prev) => ({
+                            ...prev,
+                            [ex.id]: { ...prev[ex.id], [key]: url },
+                          }))
+                        }}
+                      />
+                      {imgSrc ? (
+                        <div className="relative rounded-xl overflow-hidden h-24 bg-gray-900">
+                          <img src={imgSrc} alt={label}
+                            className="w-full h-full object-cover" />
+                          <span className="absolute bottom-1 left-1 text-[10px] bg-black/50
+                                           text-white px-1.5 py-0.5 rounded">{label}</span>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-100 border border-dashed border-gray-300
+                                        group-hover:border-blue-400 group-hover:bg-blue-50
+                                        rounded-xl h-24 flex flex-col items-center
+                                        justify-center gap-1 text-gray-400 transition-colors">
+                          <Image className="w-6 h-6" />
+                          <p className="text-xs">{label}</p>
+                          <p className="text-[10px] text-gray-300">Nhấn để tải ảnh</p>
+                        </div>
+                      )}
+                    </label>
+                  )
+                })}
               </div>
             </div>
 
