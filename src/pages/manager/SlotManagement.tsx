@@ -397,7 +397,7 @@ export default function SlotManagement() {
                 <th className="px-4 py-3 font-semibold text-gray-600 whitespace-nowrap">Khu vực</th>
                 <th className="px-4 py-3 font-semibold text-gray-600 whitespace-nowrap">Loại xe</th>
                 <th className="px-4 py-3 font-semibold text-gray-600 whitespace-nowrap">Trạng thái</th>
-                <th className="px-4 py-3 font-semibold text-gray-600 whitespace-nowrap">Cập nhật</th>
+                <th className="px-4 py-3 font-semibold text-gray-600 whitespace-nowrap">Biển số / Thời gian vào</th>
                 <th className="px-4 py-3 font-semibold text-gray-600 text-center whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
@@ -417,10 +417,19 @@ export default function SlotManagement() {
                     <td className="px-4 py-3 text-gray-700">Khu {slot.zone}</td>
                     <td className="px-4 py-3 text-gray-700">{VEHICLE_LABEL[slot.vehicleType]}</td>
                     <td className="px-4 py-3"><StatusBadge status={slot.status} /></td>
-                    <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
-                      {new Date(slot.updatedAt).toLocaleTimeString('vi-VN', {
-                        hour: '2-digit', minute: '2-digit', second: '2-digit',
-                      })}
+                    <td className="px-4 py-3">
+                      {slot.currentPlate ? (
+                        <div>
+                          <p className="font-mono text-sm font-semibold text-gray-800">{slot.currentPlate}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {slot.checkInTime
+                              ? new Date(slot.checkInTime).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+                              : '—'}
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <button

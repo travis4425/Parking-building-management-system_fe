@@ -63,6 +63,7 @@ interface BeSlot {
 }
 
 export function mapSlot(beSlot: BeSlot): ParkingSlot {
+  const active = (beSlot as any).activeSession ?? null
   return {
     id: beSlot.id,
     code: beSlot.code,
@@ -71,6 +72,8 @@ export function mapSlot(beSlot: BeSlot): ParkingSlot {
     status: mapSlotStatus(beSlot.status),
     vehicleType: mapVehicleTypeCode(beSlot.vehicleType?.code),
     updatedAt: beSlot.updatedAt ?? new Date().toISOString(),
+    currentPlate: active?.licensePlate ?? undefined,
+    checkInTime: active?.entryTime ?? undefined,
   }
 }
 

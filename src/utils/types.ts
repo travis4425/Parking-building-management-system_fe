@@ -27,6 +27,7 @@ export interface ParkingSlot {
   status: SlotStatus
   vehicleType: VehicleType
   currentPlate?: string
+  checkInTime?: string  // ISO string — thời gian xe vào (từ active session)
   sessionId?: string
   updatedAt: string   // ISO string — dùng cho IoT simulation timestamp
 }
