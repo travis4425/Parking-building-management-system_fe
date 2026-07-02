@@ -9,11 +9,9 @@ import SlotManagement    from '@/pages/manager/SlotManagement'
 import VehicleManagement from '@/pages/manager/VehicleManagement'
 import PricingManagement from '@/pages/manager/PricingManagement'
 import Reports           from '@/pages/manager/Reports'
-import ManagerExceptions from '@/pages/manager/ManagerExceptions'
 import StaffDashboard from '@/pages/staff/StaffDashboard'
 import CheckIn from '@/pages/staff/CheckIn'
 import CheckOut from '@/pages/staff/CheckOut'
-import StaffExceptions from '@/pages/staff/StaffExceptions'
 import DriverHome from '@/pages/driver/DriverHome'
 import DriverPayment from '@/pages/driver/DriverPayment'
 import DriverBooking from '@/pages/driver/DriverBooking'
@@ -99,16 +97,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/manager/exceptions"
-          element={
-            <ProtectedRoute allowedRoles={['manager']}>
-              <AppLayout pageTitle="Theo dõi ngoại lệ">
-                <ManagerExceptions />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
 
         {/* === STAFF ROUTES === */}
         <Route
@@ -155,16 +143,6 @@ export default function App() {
         <Route
           path="/staff/payment"
           element={<Navigate to="/staff/checkout" replace />}
-        />
-        <Route
-          path="/staff/exceptions"
-          element={
-            <ProtectedRoute allowedRoles={['staff']}>
-              <AppLayout pageTitle="Xử lý ngoại lệ">
-                <StaffExceptions />
-              </AppLayout>
-            </ProtectedRoute>
-          }
         />
 
         {/* === DRIVER ROUTES — dùng DriverLayout (bottom nav, không có sidebar) === */}

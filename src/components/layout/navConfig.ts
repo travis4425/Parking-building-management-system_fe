@@ -6,7 +6,6 @@ import {
   Car,
   DollarSign,
   BarChart2,
-  AlertTriangle,
   LogIn,
   LogOut,
   Users,
@@ -32,13 +31,11 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Phương tiện',path: '/manager/vehicles',   icon: Car             },
     { label: 'Bảng giá',  path: '/manager/pricing',    icon: DollarSign      },
     { label: 'Báo cáo',   path: '/manager/reports',    icon: BarChart2       },
-    { label: 'Ngoại lệ',  path: '/manager/exceptions', icon: AlertTriangle   },
   ],
   staff: [
     { label: 'Dashboard',      path: '/staff',            icon: LayoutDashboard },
     { label: 'Xe vào',         path: '/staff/checkin',    icon: LogIn           },
     { label: 'Xe ra / Thu phí', path: '/staff/checkout',  icon: LogOut          },
-    { label: 'Ngoại lệ',       path: '/staff/exceptions', icon: AlertTriangle   },
   ],
   driver: [
     { label: 'Trang chủ', path: '/driver',             icon: Home            },
