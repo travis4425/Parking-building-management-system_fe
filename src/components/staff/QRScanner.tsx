@@ -12,7 +12,8 @@ interface QRScannerProps {
 
 type CamError = 'permission' | 'notfound' | 'other' | 'in_app_browser' | null
 
-const SCANNER_DIV_ID = 'html5-qr-reader'
+const SCANNER_DIV_ID      = 'html5-qr-reader'
+const FILE_SCANNER_DIV_ID = 'html5-qr-file-reader'  // div ẩn chỉ dùng cho file scan
 
 // 🐞 SỬA: webview trong-app (Zalo, Messenger, Instagram, Zoom...) thường chặn/giả
 // lập camera không ổn định — html5-qrcode có thể throw lỗi không phải Error chuẩn
@@ -182,7 +183,8 @@ export default function QRScanner({ onScan, active }: QRScannerProps) {
 
     setUploading(true)
     try {
-      const fileScanner = new Html5Qrcode(SCANNER_DIV_ID)
+      // Dùng div ẩn riêng để tránh conflict với camera scanner đang chạy trên SCANNER_DIV_ID
+      const fileScanner = new Html5Qrcode(FILE_SCANNER_DIV_ID)
       const decodedText = await fileScanner.scanFile(file, false)
       playBeep()
       onScan(decodedText)
@@ -309,6 +311,8 @@ export default function QRScanner({ onScan, active }: QRScannerProps) {
         className="hidden"
         onChange={handleFileUpload}
       />
+      {/* Div ẩn riêng cho file scan — tránh conflict với camera scanner đang dùng SCANNER_DIV_ID */}
+      <div id={FILE_SCANNER_DIV_ID} className="hidden" />
 
       {/* Nút tải ảnh QR lên — 🐞 SỬA: trước đây bị ẩn lúc manualMode=true (vd. khi
           "Không tìm thấy camera" tự bật manualMode), nên luôn hiện khi đang active,

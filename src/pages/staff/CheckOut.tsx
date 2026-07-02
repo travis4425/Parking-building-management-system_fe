@@ -105,8 +105,24 @@ export default function CheckOut() {
       toast.error('Mã QR không hợp lệ hoặc đã hết hiệu lực')
       setScanActive(true)
     } else {
-      // Không phải PKG format — thử exact match UUID (hỗ trợ QR cũ)
-      applySession(findByQR(text))
+      // Không phải PKG format — có thể là UUID (qrToken) staff nhập tay
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (UUID_RE.test(text.trim())) {
+        try {
+          const remote = await fetchSessionById(text.trim().toLowerCase())
+          if (remote.status === 'active') {
+            applySession(remote)
+          } else {
+            toast.error('Phiên đỗ xe này đã kết thúc')
+            setScanActive(true)
+          }
+        } catch {
+          toast.error('Không tìm thấy phiên đỗ xe với mã này')
+          setScanActive(true)
+        }
+      } else {
+        applySession(findByQR(text))
+      }
     }
   }
 
