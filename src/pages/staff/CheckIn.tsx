@@ -135,7 +135,7 @@ function SessionConfirmModal({
           </div>
 
           <p className="text-xs text-center text-gray-400">
-            Mã QR: <span className="font-mono">{session.qrCode.slice(0, 12).toUpperCase()}…</span>
+            Mã QR: <span className="font-mono text-xs break-all select-all">{session.qrCode.toUpperCase()}</span>
           </p>
         </div>
 
