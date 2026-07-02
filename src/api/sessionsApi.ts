@@ -3,10 +3,15 @@ import { apiClient } from './client'
 import { mapSession } from './mappers'
 import type { ParkingSession } from '@/utils/types'
 
-export async function fetchSessions(params?: { status?: string }): Promise<ParkingSession[]> {
+export async function fetchSessions(params?: { status?: string; qrToken?: string }): Promise<ParkingSession[]> {
   const res = await apiClient.get('/sessions', { params })
   const list = (res.data.data as any[]) ?? []
   return list.map(mapSession)
+}
+
+export async function fetchSessionByQrToken(qrToken: string): Promise<ParkingSession | null> {
+  const sessions = await fetchSessions({ qrToken: qrToken.trim() })
+  return sessions[0] ?? null
 }
 
 export async function fetchSessionById(id: string): Promise<ParkingSession> {

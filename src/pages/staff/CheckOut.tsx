@@ -16,7 +16,7 @@ import Receipt from '@/components/staff/Receipt'
 import { BarrierGate } from '@/components/iot/BarrierStatus'
 import { decodeToken } from '@/utils/qrToken'
 import { useSessionStore } from '@/store/sessionStore'
-import { fetchSessionById, fetchActiveSessionByPlate } from '@/api/sessionsApi'
+import { fetchSessionById, fetchSessionByQrToken, fetchActiveSessionByPlate } from '@/api/sessionsApi'
 import { useSlotStore } from '@/store/slotStore'
 import { usePaymentStore } from '@/store/paymentStore'
 import { useAuthStore } from '@/store/authStore'
@@ -130,11 +130,18 @@ export default function CheckOut() {
       toast.error('Mã QR không hợp lệ hoặc đã hết hiệu lực')
       setScanActive(true)
     } else {
-      // Thử UUID thuần (staff nhập tay)
+      // QR vé mới chứa qrToken dạng UUID, không phải Session.id.
       const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
       if (UUID_RE.test(text.trim())) {
         try {
-          const remote = await fetchSessionById(text.trim().toLowerCase())
+          const token = text.trim().toLowerCase()
+          const local = findByQR(token)
+          const remote = local ?? await fetchSessionByQrToken(token)
+          if (!remote) {
+            toast.error('Không tìm thấy phiên đỗ xe với mã này')
+            setScanActive(true)
+            return
+          }
           if (remote.status === 'active' || remote.status === 'payment_pending') {
             applySession(remote)
           } else {
