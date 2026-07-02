@@ -13,7 +13,6 @@ import ManagerExceptions from '@/pages/manager/ManagerExceptions'
 import StaffDashboard from '@/pages/staff/StaffDashboard'
 import CheckIn from '@/pages/staff/CheckIn'
 import CheckOut from '@/pages/staff/CheckOut'
-import StaffPayment from '@/pages/staff/StaffPayment'
 import StaffExceptions from '@/pages/staff/StaffExceptions'
 import DriverHome from '@/pages/driver/DriverHome'
 import DriverPayment from '@/pages/driver/DriverPayment'
@@ -155,13 +154,7 @@ export default function App() {
         />
         <Route
           path="/staff/payment"
-          element={
-            <ProtectedRoute allowedRoles={['staff']}>
-              <AppLayout pageTitle="Thu phí">
-                <StaffPayment />
-              </AppLayout>
-            </ProtectedRoute>
-          }
+          element={<Navigate to="/staff/checkout" replace />}
         />
         <Route
           path="/staff/exceptions"

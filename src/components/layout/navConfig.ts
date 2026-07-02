@@ -36,11 +36,10 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Ngoại lệ',  path: '/manager/exceptions', icon: AlertTriangle   },
   ],
   staff: [
-    { label: 'Dashboard',  path: '/staff',              icon: LayoutDashboard },
-    { label: 'Xe vào',    path: '/staff/checkin',      icon: LogIn           },
-    { label: 'Xe ra',     path: '/staff/checkout',     icon: LogOut          },
-    { label: 'Thu phí',   path: '/staff/payment',      icon: Receipt         },
-    { label: 'Ngoại lệ',  path: '/staff/exceptions',   icon: AlertTriangle   },
+    { label: 'Dashboard',      path: '/staff',            icon: LayoutDashboard },
+    { label: 'Xe vào',         path: '/staff/checkin',    icon: LogIn           },
+    { label: 'Xe ra / Thu phí', path: '/staff/checkout',  icon: LogOut          },
+    { label: 'Ngoại lệ',       path: '/staff/exceptions', icon: AlertTriangle   },
   ],
   driver: [
     { label: 'Trang chủ', path: '/driver',             icon: Home            },
