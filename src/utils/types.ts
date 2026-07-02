@@ -48,7 +48,7 @@ export interface ParkingSession {
   checkOutTime?: string
   fee?: number
   // paid = đã thu phí nhưng xe chưa ra | completed = xe đã ra, slot freed
-  status: 'active' | 'paid' | 'completed' | 'exception'
+  status: 'active' | 'payment_pending' | 'paid' | 'completed' | 'exception'
   qrCode: string        // UUID dùng để quét khi xe ra
   entryGate?: string    // Cổng vào xe
   notes?: string        // Ghi chú của nhân viên
