@@ -141,9 +141,12 @@ export default function CheckOut() {
 
       toast.success('Thanh toán thành công — Barrier đã mở')
       setTimeout(() => setShowReceipt(true), 1200)
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Check-out thất bại:', err)
-      toast.error('Không thể check-out — vui lòng thử lại')
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Không thể check-out — vui lòng thử lại'
+      toast.error(msg)
     } finally {
       setSubmitting(false)
     }
