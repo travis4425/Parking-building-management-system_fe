@@ -253,9 +253,12 @@ export default function CheckIn() {
       toast.success(`Tạo lượt gửi xe thành công! Mã: #${newSession.id.slice(0, 8).toUpperCase()}`)
       setSession(newSession)
       setModalOpen(true)
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Check-in thất bại:', err)
-      setSubmitError('Không thể tạo lượt gửi xe — vui lòng thử lại.')
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Không thể tạo lượt gửi xe — vui lòng thử lại.'
+      setSubmitError(msg)
     } finally {
       setSubmitting(false)
     }
