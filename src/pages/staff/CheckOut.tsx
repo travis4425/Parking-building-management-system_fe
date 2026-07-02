@@ -13,7 +13,7 @@ import Receipt from '@/components/staff/Receipt'
 import { BarrierGate } from '@/components/iot/BarrierStatus'
 import { decodeToken }  from '@/utils/qrToken'
 import { useSessionStore } from '@/store/sessionStore'
-import { fetchSessionById } from '@/api/sessionsApi'
+import { fetchSessionById, fetchActiveSessionByPlate } from '@/api/sessionsApi'
 import { useSlotStore } from '@/store/slotStore'
 import { calculateFee, formatDuration, LOST_TICKET_SURCHARGE, type FeeBreakdown } from '@/utils/feeCalculator'
 import type { ParkingSession, PayMethod } from '@/utils/types'
@@ -110,9 +110,19 @@ export default function CheckOut() {
     }
   }
 
-  function handlePlateSearch() {
+  async function handlePlateSearch() {
     if (!plateInput.trim()) return
-    applySession(findByPlate(plateInput), isLostTicket)
+    // 1. Thử local store trước
+    const local = findByPlate(plateInput)
+    if (local) { applySession(local, isLostTicket); return }
+    // 2. Không có → fetch từ BE (session tạo ở tab/máy khác hoặc reload trang)
+    try {
+      const remote = await fetchActiveSessionByPlate(plateInput)
+      applySession(remote ?? undefined, isLostTicket)
+    } catch {
+      setLookupErr('Không tìm thấy phiên đỗ xe đang hoạt động.')
+      toast.error('Không tìm thấy lượt gửi xe với biển số này')
+    }
   }
 
   async function handleConfirmPayment() {

@@ -14,6 +14,15 @@ export async function fetchSessionById(id: string): Promise<ParkingSession> {
   return mapSession(res.data.data)
 }
 
+// Tìm session ACTIVE theo biển số — dùng khi tra cứu check-out mà local store không có
+export async function fetchActiveSessionByPlate(plate: string): Promise<ParkingSession | null> {
+  const res = await apiClient.get('/sessions', {
+    params: { licensePlate: plate.trim().toUpperCase(), status: 'active', limit: 1 },
+  })
+  const list = (res.data.data as any[]) ?? []
+  return list.length > 0 ? mapSession(list[0]) : null
+}
+
 export interface CheckInPayload {
   slotId: string
   // Tuỳ chọn — xe đạp thường không có biển số chính thức, để trống thì BE tự sinh mã quản lý
