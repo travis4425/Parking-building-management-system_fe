@@ -9,7 +9,6 @@ import {
   AlertTriangle,
   LogIn,
   LogOut,
-  Receipt,
   Users,
   ShieldCheck,
   Settings,
