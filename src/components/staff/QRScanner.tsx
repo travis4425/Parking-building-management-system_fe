@@ -2,6 +2,7 @@
 // phân loại lỗi camera chi tiết, fallback input nhập tay token
 import { useEffect, useRef, useState } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
+import jsQR from 'jsqr'
 import { toast } from 'sonner'
 import { ScanLine, CameraOff, Loader2, KeyboardIcon, ArrowRight, Upload } from 'lucide-react'
 
@@ -12,8 +13,8 @@ interface QRScannerProps {
 
 type CamError = 'permission' | 'notfound' | 'other' | 'in_app_browser' | null
 
-const SCANNER_DIV_ID      = 'html5-qr-reader'
-const FILE_SCANNER_DIV_ID = 'html5-qr-file-reader'  // div ẩn chỉ dùng cho file scan
+const SCANNER_DIV_ID = 'html5-qr-reader'
+const FILE_SCANNER_DIV_ID = 'html5-qr-file-reader'
 
 // 🐞 SỬA: webview trong-app (Zalo, Messenger, Instagram, Zoom...) thường chặn/giả
 // lập camera không ổn định — html5-qrcode có thể throw lỗi không phải Error chuẩn
@@ -53,6 +54,80 @@ function playBeep() {
   } catch { /* silently fail trên browsers không hỗ trợ */ }
 }
 
+// QR trong ảnh chụp toàn màn hình thường quá nhỏ so với tổng ảnh khiến ZXing
+// không định vị được. Tạo các ô crop chồng lấn để QR trở thành phần đủ lớn.
+async function createQrCropCandidates(file: File): Promise<File[]> {
+  const bitmap = await createImageBitmap(file)
+  const candidates: File[] = []
+  const cols = 3
+  const rows = 3
+  const tileWidth = Math.ceil(bitmap.width / 2)
+  const tileHeight = Math.ceil(bitmap.height / 2)
+
+  try {
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const sx = Math.round((bitmap.width - tileWidth) * col / (cols - 1))
+        const sy = Math.round((bitmap.height - tileHeight) * row / (rows - 1))
+        const canvas = document.createElement('canvas')
+        canvas.width = tileWidth
+        canvas.height = tileHeight
+        const context = canvas.getContext('2d')
+        if (!context) continue
+        context.fillStyle = '#fff'
+        context.fillRect(0, 0, tileWidth, tileHeight)
+        context.drawImage(bitmap, sx, sy, tileWidth, tileHeight, 0, 0, tileWidth, tileHeight)
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+        if (blob) candidates.push(new File([blob], `qr-crop-${row}-${col}.png`, { type: 'image/png' }))
+      }
+    }
+  } finally {
+    bitmap.close()
+  }
+
+  return candidates
+}
+
+async function decodeWithJsQr(files: File[]): Promise<string | undefined> {
+  for (const file of files) {
+    const bitmap = await createImageBitmap(file)
+    try {
+      const canvas = document.createElement('canvas')
+      canvas.width = bitmap.width
+      canvas.height = bitmap.height
+      const context = canvas.getContext('2d', { willReadFrequently: true })
+      if (!context) continue
+      context.drawImage(bitmap, 0, 0)
+      const image = context.getImageData(0, 0, canvas.width, canvas.height)
+      const result = jsQR(image.data, image.width, image.height, {
+        inversionAttempts: 'attemptBoth',
+      })
+      if (result?.data) return result.data
+    } finally {
+      bitmap.close()
+    }
+  }
+  return undefined
+}
+
+async function decodeWithNativeBarcodeDetector(file: File): Promise<string | undefined> {
+  const Detector = (window as unknown as {
+    BarcodeDetector?: new (options: { formats: string[] }) => {
+      detect(source: ImageBitmap): Promise<Array<{ rawValue: string }>>
+    }
+  }).BarcodeDetector
+  if (!Detector) return undefined
+
+  const bitmap = await createImageBitmap(file)
+  try {
+    const detector = new Detector({ formats: ['qr_code'] })
+    const [result] = await detector.detect(bitmap)
+    return result?.rawValue || undefined
+  } finally {
+    bitmap.close()
+  }
+}
+
 export default function QRScanner({ onScan, active }: QRScannerProps) {
   const calledRef     = useRef(false)
   const fileInputRef  = useRef<HTMLInputElement>(null)
@@ -65,13 +140,13 @@ export default function QRScanner({ onScan, active }: QRScannerProps) {
 
   useEffect(() => {
     if (active) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+
       setCamError(null)
-       
+
       setManualMode(false)
-       
+
       setManualInput('')
-       
+
       setScanOk(false)
     }
   }, [active])
@@ -87,11 +162,11 @@ export default function QRScanner({ onScan, active }: QRScannerProps) {
     }
 
     calledRef.current = false
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+
     setStarting(true)
-     
+
     setCamError(null)
-     
+
     setScanOk(false)
 
     let isStarted     = false
@@ -124,7 +199,7 @@ export default function QRScanner({ onScan, active }: QRScannerProps) {
     try {
       s.start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 220, height: 130 } },
+        { fps: 10, qrbox: { width: 220, height: 220 } },
         (decodedText: string) => {
           if (calledRef.current) return
           calledRef.current = true
@@ -182,15 +257,38 @@ export default function QRScanner({ onScan, active }: QRScannerProps) {
     if (!file) return
 
     setUploading(true)
+    let fileScanner: Html5Qrcode | undefined
     try {
-      // Dùng div ẩn riêng để tránh conflict với camera scanner đang chạy trên SCANNER_DIV_ID
-      const fileScanner = new Html5Qrcode(FILE_SCANNER_DIV_ID)
-      const decodedText = await fileScanner.scanFile(file, false)
+      let decodedText = await decodeWithNativeBarcodeDetector(file)
+
+      // Không dùng chung element với camera scanner đang chạy. html5-qrcode giữ
+      // state theo element; hai instance trên cùng element làm scanFile thất bại.
+      fileScanner = new Html5Qrcode(FILE_SCANNER_DIV_ID)
+      if (!decodedText) try {
+        decodedText = await fileScanner.scanFile(file, false)
+      } catch {
+        const crops = await createQrCropCandidates(file)
+        for (const crop of crops) {
+          try {
+            decodedText = await fileScanner.scanFile(crop, false)
+            break
+          } catch {
+            // Thử vùng tiếp theo cho tới khi tìm thấy QR.
+          }
+        }
+        if (!decodedText) {
+          decodedText = await decodeWithJsQr([file, ...crops])
+        }
+      }
+      if (!decodedText) throw new Error('Không tìm thấy QR trong ảnh')
       playBeep()
       onScan(decodedText)
-    } catch {
-      toast.error('Không đọc được mã QR từ ảnh này — vui lòng chọn ảnh khác hoặc nhập mã thủ công')
+    } catch (error) {
+      console.error('Không đọc được QR từ ảnh:', error)
+      const detail = error instanceof Error ? error.message : String(error)
+      toast.error(`Không đọc được mã QR: ${detail || 'không tìm thấy QR trong ảnh'}`)
     } finally {
+      try { fileScanner?.clear() } catch { /* scanner chưa render thì không cần clear */ }
       setUploading(false)
     }
   }
@@ -311,8 +409,13 @@ export default function QRScanner({ onScan, active }: QRScannerProps) {
         className="hidden"
         onChange={handleFileUpload}
       />
-      {/* Div ẩn riêng cho file scan — tránh conflict với camera scanner đang dùng SCANNER_DIV_ID */}
-      <div id={FILE_SCANNER_DIV_ID} className="hidden" />
+
+      {/* Vùng decode file riêng, đặt ngoài màn hình để không xung đột camera scanner. */}
+      <div
+        id={FILE_SCANNER_DIV_ID}
+        className="fixed -left-[10000px] top-0 h-[600px] w-[600px] overflow-hidden bg-white"
+        aria-hidden="true"
+      />
 
       {/* Nút tải ảnh QR lên — 🐞 SỬA: trước đây bị ẩn lúc manualMode=true (vd. khi
           "Không tìm thấy camera" tự bật manualMode), nên luôn hiện khi đang active,

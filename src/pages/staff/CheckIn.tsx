@@ -3,7 +3,7 @@
 // dùng sensor từng slot nên không có cách xác minh xe có đậu đúng chỗ AI gợi ý hay không —
 // chỉ còn thống kê số chỗ trống theo zone/tầng, staff hướng dẫn driver bằng lời.
 import { useState, useEffect, useRef } from 'react'
-import { QRCodeCanvas } from 'qrcode.react'
+import { QRCodeSVG } from 'qrcode.react'
 import {
   CheckCircle, AlertCircle,
   Printer, X, ClipboardList, Car, Clock,
@@ -14,11 +14,11 @@ import { BarrierGate } from '@/components/iot/BarrierStatus'
 import { useSlotStore } from '@/store/slotStore'
 import { useSessionStore } from '@/store/sessionStore'
 import { toast } from 'sonner'
-import { generateToken } from '@/utils/qrToken'
 import { fetchEntryGates, type BeGate } from '@/api/gatesApi'
 import { fetchZoneSummary, type ZoneSummary } from '@/api/zonesApi'
 import { Building2 } from 'lucide-react'
 import type { VehicleType, ParkingSession } from '@/utils/types'
+import { apiErrorMessage } from '@/api/errors'
 
 const VEHICLE_OPTIONS: { value: VehicleType; label: string; icon: string }[] = [
   { value: 'motorbike', label: 'Xe máy', icon: '🛵' },
@@ -45,8 +45,10 @@ function SessionConfirmModal({
 
   // In QR bằng cách mở cửa sổ mới với HTML tĩnh + dataURL từ canvas
   function handlePrint() {
-    const canvas = qrContainerRef.current?.querySelector('canvas') as HTMLCanvasElement | null
-    const qrDataUrl = canvas?.toDataURL('image/png') ?? ''
+    const svg = qrContainerRef.current?.querySelector('svg')
+    const qrDataUrl = svg
+      ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(new XMLSerializer().serializeToString(svg))}`
+      : ''
 
     const html = `<!DOCTYPE html>
 <html lang="vi">
@@ -82,7 +84,7 @@ function SessionConfirmModal({
     ${gateLabel ? `<tr><td>Cổng vào</td><td>${gateLabel.split('—')[0].trim()}</td></tr>` : ''}
   </table>
   <div class="note">Quét mã QR khi xe ra để thanh toán<br/>
-    <span class="code">Mã: ${session.qrCode.slice(0, 8).toUpperCase()}</span>
+    <span class="code">Mã: ${session.qrCode}</span>
   </div>
 </div>
 </body>
@@ -118,7 +120,14 @@ function SessionConfirmModal({
           {/* QR Code */}
           <div className="flex justify-center" ref={qrContainerRef}>
             <div className="p-3 border-2 border-gray-200 rounded-xl bg-white">
-              <QRCodeCanvas value={generateToken(session.id, session.checkInTime)} size={160} level="M" />
+              <QRCodeSVG
+                value={session.qrCode}
+                size={200}
+                level="M"
+                marginSize={4}
+                bgColor="#ffffff"
+                fgColor="#000000"
+              />
             </div>
           </div>
 
@@ -134,9 +143,12 @@ function SessionConfirmModal({
             {gateLabel && <InfoRow label="Cổng vào" value={gateLabel.split('—')[0].trim()} />}
           </div>
 
-          <p className="text-xs text-center text-gray-400">
-            Mã QR: <span className="font-mono text-xs break-all select-all">{session.qrCode.toUpperCase()}</span>
-          </p>
+          <div className="text-xs text-center text-gray-400">
+            <span>Mã QR:</span>
+            <span className="mt-1 block break-all font-mono text-gray-600 select-all">
+              {session.qrCode}
+            </span>
+          </div>
         </div>
 
         {/* Actions */}
@@ -222,7 +234,9 @@ export default function CheckIn() {
     // Xe đạp thường không có biển số chính thức nên không bắt buộc nhập —
     // hệ thống (BE) sẽ tự sinh mã quản lý nội bộ nếu để trống.
     if (!plate.trim() && vehicleType !== 'bicycle') {
-      setSubmitError('Vui lòng nhận diện hoặc nhập biển số xe.')
+      const message = 'Vui lòng nhận diện hoặc nhập biển số xe.'
+      setSubmitError(message)
+      toast.error(message)
       return
     }
 
@@ -231,7 +245,9 @@ export default function CheckIn() {
     const targetSlot = slots.find((s) => s.status === 'available' && s.vehicleType === vehicleType)
 
     if (!targetSlot) {
-      setSubmitError('Không còn slot trống phù hợp cho loại xe này.')
+      const message = 'Không tìm thấy slot trống phù hợp. Hãy tải lại trang và chọn đúng loại xe.'
+      setSubmitError(message)
+      toast.error(message)
       return
     }
 
@@ -253,12 +269,11 @@ export default function CheckIn() {
       toast.success(`Tạo lượt gửi xe thành công! Mã: #${newSession.id.slice(0, 8).toUpperCase()}`)
       setSession(newSession)
       setModalOpen(true)
-    } catch (err: unknown) {
+    } catch (err) {
       console.error('Check-in thất bại:', err)
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        ?? 'Không thể tạo lượt gửi xe — vui lòng thử lại.'
-      setSubmitError(msg)
+      const message = apiErrorMessage(err, 'Không thể tạo lượt gửi xe — vui lòng thử lại.')
+      setSubmitError(message)
+      toast.error(message)
     } finally {
       setSubmitting(false)
     }
