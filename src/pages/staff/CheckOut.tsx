@@ -226,14 +226,21 @@ export default function CheckOut() {
           setFee((prev) => prev ? { ...prev, total: officialFee } : prev)
         }
       } catch (coErr: unknown) {
-        // Session đã PAYMENT_PENDING (gọi lại lần 2) — bỏ qua, dùng fee hiện có
-        const status = (coErr as { response?: { status?: number } })?.response?.status
-        if (status !== 400) throw coErr
+        const coStatus = (coErr as { response?: { status?: number } })?.response?.status
+        if (coStatus !== 400) throw coErr
+        // Session đã PAYMENT_PENDING — BE đã lưu totalFee chính xác, dùng luôn tránh float mismatch
+        if (session.fee != null) {
+          officialFee = session.fee
+          setFee((prev) => prev ? { ...prev, total: session.fee! } : prev)
+        }
       }
 
+      // Math.round để tránh lỗi float precision (7163.33 vs 7163)
+      const roundedFee = Math.round(officialFee)
+
       // 2. Ghi nhận thanh toán → session COMPLETED + slot freed trong DB
-      await createCashPayment(session.id, officialFee, payMethod === 'cash' ? 'CASH' : 'CARD')
-      finalizeCheckout(officialFee, payMethod)
+      await createCashPayment(session.id, roundedFee, payMethod === 'cash' ? 'CASH' : 'CARD')
+      finalizeCheckout(roundedFee, payMethod)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
         ?? 'Không thể xử lý — vui lòng thử lại'
@@ -608,6 +615,25 @@ export default function CheckOut() {
                           </>
                         ) : (
                           <p className="text-xs text-red-500">Không tạo được mã QR</p>
+                        )}
+                        {/* Nút giả lập thanh toán — dùng để test khi chưa có VNPay merchant thật */}
+                        {session && fee && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await createCashPayment(session.id, Math.round(fee.total), 'CASH')
+                                finalizeCheckout(Math.round(fee.total), 'qr')
+                              } catch (e: unknown) {
+                                const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+                                  ?? 'Lỗi giả lập thanh toán'
+                                toast.error(msg)
+                              }
+                            }}
+                            className="mt-2 text-xs text-gray-400 border border-dashed border-gray-300
+                                       rounded-lg px-3 py-1.5 hover:text-gray-600 hover:border-gray-400 transition-colors"
+                          >
+                            🧪 [Demo] Giả lập khách vừa thanh toán
+                          </button>
                         )}
                       </div>
                     )}
