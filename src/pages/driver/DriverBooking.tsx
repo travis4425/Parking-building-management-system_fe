@@ -16,13 +16,12 @@ import type { ParkingSession, VehicleType, Reservation } from '@/utils/types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const VEHICLE_OPTS: { val: VehicleType; label: string; icon: React.ElementType; desc: string }[] = [
-  { val: 'motorbike', label: 'Xe máy', icon: Bike, desc: 'Hầm B1 · Xe 2 bánh' },
-  { val: 'bicycle',   label: 'Xe đạp', icon: Bike, desc: 'Hầm B1 · Xe 2 bánh' },
+  { val: 'motorbike', label: 'Xe máy', icon: Bike, desc: 'Khu A · Xe 2 bánh' },
+  { val: 'bicycle',   label: 'Xe đạp', icon: Bike, desc: 'Khu A · Xe 2 bánh' },
   { val: 'car',       label: 'Ô tô',   icon: Car,  desc: 'Tầng 1-3 · Ô tô' },
 ]
 
 const FLOOR_LABELS: Record<number, string> = {
-  [-1]: 'Hầm B1 · Xe máy / Xe đạp',
   1: 'Tầng 1 · Ô tô',
   2: 'Tầng 2 · Ô tô',
   3: 'Tầng 3 · Ô tô',
