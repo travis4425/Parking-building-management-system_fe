@@ -21,7 +21,6 @@ const PARKING_INFO = {
   closeLabel: '23:00',
   totalSlots: 72,
   floors: [
-    { floor: -1, zone: 'B1', label: 'Hầm B1', vehicleLabel: 'Xe máy / Xe đạp' },
     { floor: 1,  zone: '1',  label: 'Tầng 1', vehicleLabel: 'Ô tô' },
     { floor: 2,  zone: '2',  label: 'Tầng 2', vehicleLabel: 'Ô tô' },
     { floor: 3,  zone: '3',  label: 'Tầng 3', vehicleLabel: 'Ô tô' },
