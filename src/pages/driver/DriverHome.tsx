@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { QRCodeCanvas } from 'qrcode.react'
 import {
   MapPin, Clock, CheckCircle2, XCircle, Car,
-  Bike, Layers, TrendingUp, Info, RefreshCw,
+  Bike, Layers, TrendingUp, Info, QrCode,
 } from 'lucide-react'
 import { useSlotStore } from '@/store/slotStore'
 import { useSessionStore } from '@/store/sessionStore'
@@ -201,66 +201,36 @@ export default function DriverHome() {
         </div>
       </div>
 
-      {/* ── 3. Session đang gửi xe (nếu có) ─────────────────────────────── */}
-      {activeSession && liveFee && (
-        <div className="bg-white rounded-2xl border-2 border-blue-200 shadow-sm overflow-hidden">
-          {/* Header */}
-          <div className="bg-blue-50 px-5 py-3 flex items-center gap-2 border-b border-blue-100">
-            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-            <h3 className="font-semibold text-blue-800">Đang gửi xe</h3>
-            <span className="ml-auto text-xs text-blue-500 flex items-center gap-1">
-              <RefreshCw className="w-3 h-3" />
-              Cập nhật mỗi phút
-            </span>
-          </div>
+      {/* ── 3. QR Account + trạng thái xe ──────────────────────────────── */}
+      <div className={`bg-white rounded-2xl border-2 shadow-sm overflow-hidden ${
+        activeSession ? 'border-blue-300' : 'border-gray-200'
+      }`}>
+        {/* Header */}
+        <div className={`px-5 py-3 flex items-center gap-2 border-b ${
+          activeSession
+            ? 'bg-blue-50 border-blue-100'
+            : 'bg-gray-50 border-gray-100'
+        }`}>
+          {activeSession ? (
+            <>
+              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <h3 className="font-semibold text-blue-800">Xe đang trong bãi</h3>
+            </>
+          ) : (
+            <>
+              <QrCode className="w-4 h-4 text-gray-500" />
+              <h3 className="font-semibold text-gray-700">Mã QR của bạn</h3>
+            </>
+          )}
+        </div>
 
-          <div className="p-5 space-y-5">
-            {/* Thông tin session */}
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-              <dt className="text-gray-500">Biển số</dt>
-              <dd className="font-mono font-bold text-gray-900 text-base">
-                {activeSession.vehiclePlate}
-              </dd>
-
-              <dt className="text-gray-500">Loại xe</dt>
-              <dd className="flex items-center gap-1.5">
-                {(() => { const Icon = VEHICLE_ICONS[activeSession.vehicleType] ?? Car; return <Icon className="w-4 h-4 text-gray-500" /> })()}
-                {VEHICLE_LABELS[activeSession.vehicleType] ?? activeSession.vehicleType}
-              </dd>
-
-              <dt className="text-gray-500">Slot</dt>
-              <dd className="font-semibold">{activeSession.slotCode}</dd>
-
-              <dt className="text-gray-500">Giờ vào</dt>
-              <dd>{new Date(activeSession.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</dd>
-
-              <dt className="text-gray-500">Thời gian đỗ</dt>
-              <dd className="font-medium">{formatDuration(liveFee.durationMinutes)}</dd>
-            </dl>
-
-            {/* Phí tạm tính */}
-            <div className="bg-blue-50 rounded-xl p-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-blue-500 font-medium">Phí tạm tính</p>
-                <p className="text-2xl font-bold text-blue-700 mt-0.5">{fmt(liveFee.total)}</p>
-                {liveFee.isPeak && (
-                  <p className="text-xs text-orange-500 mt-0.5">⚡ Đang áp dụng giá cao điểm</p>
-                )}
-              </div>
-              <div className="text-right text-xs text-blue-400">
-                <p>Tính đến</p>
-                <p className="font-mono font-semibold text-blue-600">
-                  {now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                </p>
-              </div>
-            </div>
-
-            {/* QR Code */}
+        <div className="p-5 space-y-4">
+          {/* QR cố định theo account */}
+          {user?.qrToken ? (
             <div className="flex flex-col items-center gap-3">
-              <p className="text-sm text-gray-600 font-medium">Mã vé — xuất trình tại cổng ra</p>
               <div className="bg-white p-3 rounded-2xl shadow-inner border border-gray-100">
                 <QRCodeCanvas
-                  value={activeSession.qrCode}
+                  value={user.qrToken}
                   size={200}
                   level="M"
                   includeMargin={false}
@@ -268,12 +238,57 @@ export default function DriverHome() {
                 />
               </div>
               <p className="text-xs text-gray-400 text-center">
-                Mã QR sẽ được nhân viên quét khi xe ra
+                {activeSession
+                  ? 'Xuất trình mã này cho nhân viên khi ra cổng'
+                  : 'Xuất trình mã này cho nhân viên khi vào bãi'}
               </p>
             </div>
-          </div>
+          ) : (
+            <p className="text-sm text-gray-400 text-center py-4">
+              Không có mã QR — vui lòng liên hệ quản lý
+            </p>
+          )}
+
+          {/* Thông tin session nếu đang trong bãi */}
+          {activeSession && liveFee && (
+            <>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <dt className="text-gray-500">Biển số</dt>
+                <dd className="font-mono font-bold text-gray-900">
+                  {user?.licensePlate ?? activeSession.vehiclePlate}
+                </dd>
+
+                <dt className="text-gray-500">Vào lúc</dt>
+                <dd className="font-medium">
+                  {new Date(activeSession.checkInTime).toLocaleTimeString('vi-VN', {
+                    hour: '2-digit', minute: '2-digit',
+                  })}
+                </dd>
+
+                <dt className="text-gray-500">Thời gian đỗ</dt>
+                <dd className="font-medium">{formatDuration(liveFee.durationMinutes)}</dd>
+              </dl>
+
+              {/* Phí tạm tính */}
+              <div className="bg-blue-50 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-blue-500 font-medium">Phí tạm tính</p>
+                  <p className="text-2xl font-bold text-blue-700 mt-0.5">{fmt(liveFee.total)}</p>
+                  {liveFee.isPeak && (
+                    <p className="text-xs text-orange-500 mt-0.5">⚡ Đang áp dụng giá cao điểm</p>
+                  )}
+                </div>
+                <div className="text-right text-xs text-blue-400">
+                  <p>Tính đến</p>
+                  <p className="font-mono font-semibold text-blue-600">
+                    {now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
         </div>
-      )}
+      </div>
 
       {/* ── 4. Bảng giá rút gọn ──────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
