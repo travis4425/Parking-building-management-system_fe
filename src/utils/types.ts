@@ -10,6 +10,10 @@ export interface User {
   email: string
   role: UserRole
   avatar?: string
+  // Driver fields (chỉ có giá trị khi role = 'driver')
+  licensePlate?: string | null
+  vehicleType?: { id: string; name: string; code: string } | null
+  qrToken?: string | null  // QR cố định theo account — dùng để check-in/check-out tại cổng
 }
 
 // Trạng thái của từng slot đỗ xe
