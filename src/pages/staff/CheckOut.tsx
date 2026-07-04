@@ -15,6 +15,7 @@ import QRScanner from '@/components/staff/QRScanner'
 import Receipt from '@/components/staff/Receipt'
 import { BarrierGate } from '@/components/iot/BarrierStatus'
 import { decodeToken } from '@/utils/qrToken'
+import { fetchActiveSessionByDriverQr } from '@/api/sessionsApi'
 import { useSessionStore } from '@/store/sessionStore'
 import { fetchSessionById, fetchSessionByQrToken, fetchActiveSessionByPlate } from '@/api/sessionsApi'
 import { useSlotStore } from '@/store/slotStore'
@@ -135,8 +136,15 @@ export default function CheckOut() {
       if (UUID_RE.test(text.trim())) {
         try {
           const token = text.trim().toLowerCase()
+          // Thử 1: tìm theo session.qrToken (luồng cũ — QR in trên vé)
           const local = findByQR(token)
-          const remote = local ?? await fetchSessionByQrToken(token)
+          let remote = local ?? await fetchSessionByQrToken(token)
+
+          // Thử 2: nếu không thấy, có thể là user.qrToken (account QR driver)
+          if (!remote) {
+            remote = await fetchActiveSessionByDriverQr(token)
+          }
+
           if (!remote) {
             toast.error('Không tìm thấy phiên đỗ xe với mã này')
             setScanActive(true)

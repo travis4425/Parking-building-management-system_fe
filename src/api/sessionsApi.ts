@@ -51,6 +51,19 @@ export interface DriverQrInfo {
   vehicleType: { id: string; name: string; code: string }
 }
 
+// Tìm active session của driver bằng user.qrToken (account QR, khác với session.qrToken)
+export async function fetchActiveSessionByDriverQr(driverQrToken: string): Promise<ParkingSession | null> {
+  try {
+    // 1. Tìm thông tin driver theo qrToken
+    const driver = await lookupDriverByQr(driverQrToken)
+    if (!driver?.licensePlate) return null
+    // 2. Tìm active session theo biển số của driver
+    return await fetchActiveSessionByPlate(driver.licensePlate)
+  } catch {
+    return null
+  }
+}
+
 export async function lookupDriverByQr(token: string): Promise<DriverQrInfo> {
   const res = await apiClient.get<{ success: boolean; data: DriverQrInfo }>(`/users/by-qr/${token}`)
   return res.data.data
