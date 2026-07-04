@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   CheckCircle, AlertCircle,
-  Printer, X, ClipboardList, Car, Clock, QrCode, ScanLine,
+  Printer, X, ClipboardList, Car, Clock, QrCode,
 } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import LPRCamera from '@/components/staff/LPRCamera'
@@ -20,6 +20,7 @@ import { Building2 } from 'lucide-react'
 import type { VehicleType, ParkingSession } from '@/utils/types'
 import { apiErrorMessage } from '@/api/errors'
 import { lookupDriverByQr, type DriverQrInfo } from '@/api/sessionsApi'
+import QRScanner from '@/components/staff/QRScanner'
 
 const VEHICLE_OPTIONS: { value: VehicleType; label: string; icon: string }[] = [
   { value: 'motorbike', label: 'Xe máy', icon: '🛵' },
@@ -217,11 +218,12 @@ export default function CheckIn() {
   }, [])
 
   // QR Driver mode
-  const [qrMode,       setQrMode]       = useState(false)
-  const [qrInput,      setQrInput]      = useState('')
-  const [driverInfo,   setDriverInfo]   = useState<DriverQrInfo | null>(null)
-  const [qrLookupErr,  setQrLookupErr]  = useState('')
-  const [qrLooking,    setQrLooking]    = useState(false)
+  const [qrMode,         setQrMode]         = useState(false)
+  const [scanActive,     setScanActive]     = useState(false)
+  const [scannedQrToken, setScannedQrToken] = useState('')   // raw UUID từ QR scanner
+  const [driverInfo,     setDriverInfo]     = useState<DriverQrInfo | null>(null)
+  const [qrLookupErr,    setQrLookupErr]    = useState('')
+  const [qrLooking,      setQrLooking]      = useState(false)
 
   // Session state
   const [session,     setSession]     = useState<ParkingSession | null>(null)
@@ -270,7 +272,7 @@ export default function CheckIn() {
         qrMode && driverInfo
           ? {
               slotId:        targetSlot.id,
-              driverQrToken: qrInput.trim(),
+              driverQrToken: scannedQrToken,
               vehicleTypeId: driverInfo.vehicleType.id,
               gateInId:      entryGate || undefined,
             }
@@ -308,13 +310,16 @@ export default function CheckIn() {
     setNotes('')
     setSubmitError('')
     setSession(null)
-    setQrInput('')
+    setScanActive(false)
+    setScannedQrToken('')
     setDriverInfo(null)
     setQrLookupErr('')
   }
 
   async function handleQrLookup(token: string) {
     if (!token.trim()) return
+    setScanActive(false)
+    setScannedQrToken(token.trim())
     setQrLooking(true)
     setQrLookupErr('')
     setDriverInfo(null)
@@ -328,6 +333,7 @@ export default function CheckIn() {
       else setVehicleType('motorbike')
     } catch (err: any) {
       setQrLookupErr(err?.response?.data?.message ?? 'Mã QR không hợp lệ')
+      setScanActive(true)  // Re-activate scanner nếu lỗi
     } finally {
       setQrLooking(false)
     }
@@ -373,7 +379,7 @@ export default function CheckIn() {
               <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
                 <button
                   type="button"
-                  onClick={() => { setQrMode(false); setDriverInfo(null); setQrInput(''); setQrLookupErr('') }}
+                  onClick={() => { setQrMode(false); setScanActive(false); setScannedQrToken(''); setDriverInfo(null); setQrLookupErr('') }}
                   className={`px-3 py-1.5 flex items-center gap-1 transition-colors ${
                     !qrMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
                   }`}
@@ -382,7 +388,7 @@ export default function CheckIn() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setQrMode(true)}
+                  onClick={() => { setQrMode(true); setScanActive(true); setDriverInfo(null); setQrLookupErr('') }}
                   className={`px-3 py-1.5 flex items-center gap-1 transition-colors ${
                     qrMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
                   }`}
@@ -393,52 +399,40 @@ export default function CheckIn() {
             </div>
 
             <div className="space-y-4">
-              {/* QR Driver mode */}
+              {/* QR Driver mode — dùng camera thật giống CheckOut */}
               {qrMode && (
                 <div className="space-y-3">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Mã QR tài xế
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={qrInput}
-                      onChange={(e) => {
-                        const v = e.target.value
-                        setQrInput(v)
-                        // Auto-lookup khi barcode scanner gõ xong UUID (36 ký tự chuẩn)
-                        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v.trim())) {
-                          handleQrLookup(v.trim())
-                        }
-                      }}
-                      onKeyDown={(e) => e.key === 'Enter' && handleQrLookup((e.target as HTMLInputElement).value)}
-                      placeholder="Quét QR hoặc nhập token..."
-                      autoFocus
-                      className="flex-1 px-3 py-2.5 text-sm rounded-xl border border-gray-300
-                                 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleQrLookup(qrInput)}
-                      disabled={qrLooking || !qrInput.trim()}
-                      className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium
-                                 hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5"
-                    >
-                      <ScanLine className="w-4 h-4" />
-                      {qrLooking ? '...' : 'Tra'}
-                    </button>
-                  </div>
-                  {qrLookupErr && (
-                    <p className="text-xs text-red-500 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" /> {qrLookupErr}
-                    </p>
-                  )}
-                  {driverInfo && (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-1 text-sm">
-                      <p className="font-semibold text-emerald-800">✓ Tìm thấy tài xế</p>
-                      <p className="text-gray-700">Tên: <span className="font-medium">{driverInfo.fullName}</span></p>
-                      <p className="text-gray-700">Biển số: <span className="font-mono font-bold">{driverInfo.licensePlate}</span></p>
-                      <p className="text-gray-700">Loại xe: <span className="font-medium">{driverInfo.vehicleType?.name}</span></p>
+                  {qrLooking ? (
+                    <div className="flex items-center justify-center gap-2 py-8 text-blue-600 text-sm">
+                      <span className="animate-spin">⏳</span> Đang tra cứu tài xế...
+                    </div>
+                  ) : driverInfo ? (
+                    <div className="space-y-3">
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-1 text-sm">
+                        <p className="font-semibold text-emerald-800">✓ Tìm thấy tài xế</p>
+                        <p className="text-gray-700">Tên: <span className="font-medium">{driverInfo.fullName}</span></p>
+                        <p className="text-gray-700">Biển số: <span className="font-mono font-bold">{driverInfo.licensePlate}</span></p>
+                        <p className="text-gray-700">Loại xe: <span className="font-medium">{driverInfo.vehicleType?.name}</span></p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setDriverInfo(null); setQrLookupErr(''); setScanActive(true) }}
+                        className="text-xs text-blue-500 hover:text-blue-700 underline"
+                      >
+                        ← Quét lại QR khác
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <QRScanner
+                        active={scanActive}
+                        onScan={handleQrLookup}
+                      />
+                      {qrLookupErr && (
+                        <p className="text-xs text-red-500 flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5" /> {qrLookupErr}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -592,12 +586,4 @@ export default function CheckIn() {
       {/* Modal xác nhận */}
       {modalOpen && session && (
         <SessionConfirmModal
-          session={session}
-          gateLabel={gates.find((g) => g.id === entryGate)?.name ?? ''}
-          onClose={() => setModalOpen(false)}
-          onReset={handleReset}
-        />
-      )}
-    </PageWrapper>
-  )
-}
+          session={sess
