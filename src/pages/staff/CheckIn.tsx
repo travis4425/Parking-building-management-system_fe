@@ -586,4 +586,12 @@ export default function CheckIn() {
       {/* Modal xác nhận */}
       {modalOpen && session && (
         <SessionConfirmModal
-          session={sess
+          session={session}
+          gateLabel={gates.find((g) => g.id === entryGate)?.name ?? ''}
+          onClose={() => setModalOpen(false)}
+          onReset={handleReset}
+        />
+      )}
+    </PageWrapper>
+  )
+}
