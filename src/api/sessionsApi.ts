@@ -36,10 +36,24 @@ export async function fetchActiveSessionByPlate(plate: string): Promise<ParkingS
 
 export interface CheckInPayload {
   slotId: string
-  // Tuỳ chọn — xe đạp thường không có biển số chính thức, để trống thì BE tự sinh mã quản lý
-  licensePlate?: string
-  vehicleTypeId: string
   gateInId?: string
+  // Luồng cũ (nhập tay)
+  licensePlate?: string
+  vehicleTypeId?: string
+  // Luồng mới (quét QR account driver)
+  driverQrToken?: string
+}
+
+export interface DriverQrInfo {
+  id: string
+  fullName: string | null
+  licensePlate: string
+  vehicleType: { id: string; name: string; code: string }
+}
+
+export async function lookupDriverByQr(token: string): Promise<DriverQrInfo> {
+  const res = await apiClient.get<{ success: boolean; data: DriverQrInfo }>(`/users/by-qr/${token}`)
+  return res.data.data
 }
 
 export async function checkInApi(payload: CheckInPayload): Promise<ParkingSession> {
@@ -48,7 +62,8 @@ export async function checkInApi(payload: CheckInPayload): Promise<ParkingSessio
 }
 
 export interface CheckOutPayload {
-  qrToken: string
+  qrToken?: string        // QR session (luồng cũ)
+  driverQrToken?: string  // QR account driver (luồng mới)
   gateOutId?: string
   lostTicket?: boolean
 }

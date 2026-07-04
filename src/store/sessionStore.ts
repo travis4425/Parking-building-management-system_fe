@@ -15,10 +15,13 @@ interface SessionStore {
   // Check-in thật qua BE — trả về session đã tạo (đã map sang FE shape)
   checkInSession: (data: {
     slotId: string
-    // Tuỳ chọn — xe đạp thường không có biển số chính thức, để trống thì BE tự sinh mã quản lý
-    licensePlate?: string
-    vehicleType: VehicleType
     gateInId?: string
+    // Luồng cũ
+    licensePlate?: string
+    vehicleType?: VehicleType
+    // Luồng mới: quét QR account driver
+    driverQrToken?: string
+    vehicleTypeId?: string   // đã resolve sẵn (dùng khi có driverQrToken)
   }) => Promise<ParkingSession>
 
   // Check-out thật qua BE — tìm theo qrToken, BE tự tính phí (pricing thật, có overnightRate)
@@ -47,9 +50,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     }
   },
 
-  checkInSession: async ({ slotId, licensePlate, vehicleType, gateInId }) => {
-    const vehicleTypeId = await getVehicleTypeId(vehicleType)
-    const session = await checkInApi({ slotId, licensePlate, vehicleTypeId, gateInId })
+  checkInSession: async ({ slotId, licensePlate, vehicleType, gateInId, driverQrToken, vehicleTypeId: resolvedVehicleTypeId }) => {
+    const vehicleTypeId = resolvedVehicleTypeId ?? (vehicleType ? await getVehicleTypeId(vehicleType) : undefined)
+    const session = await checkInApi({ slotId, licensePlate, vehicleTypeId, gateInId, driverQrToken })
     set((s) => ({ sessions: [session, ...s.sessions] }))
     return session
   },

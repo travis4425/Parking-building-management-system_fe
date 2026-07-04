@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   CheckCircle, AlertCircle,
-  Printer, X, ClipboardList, Car, Clock,
+  Printer, X, ClipboardList, Car, Clock, QrCode, ScanLine,
 } from 'lucide-react'
 import PageWrapper from '@/components/layout/PageWrapper'
 import LPRCamera from '@/components/staff/LPRCamera'
@@ -19,6 +19,7 @@ import { fetchZoneSummary, type ZoneSummary } from '@/api/zonesApi'
 import { Building2 } from 'lucide-react'
 import type { VehicleType, ParkingSession } from '@/utils/types'
 import { apiErrorMessage } from '@/api/errors'
+import { lookupDriverByQr, type DriverQrInfo } from '@/api/sessionsApi'
 
 const VEHICLE_OPTIONS: { value: VehicleType; label: string; icon: string }[] = [
   { value: 'motorbike', label: 'Xe máy', icon: '🛵' },
@@ -215,6 +216,13 @@ export default function CheckIn() {
       .catch((err) => console.error('Lỗi tải thống kê chỗ trống theo zone:', err))
   }, [])
 
+  // QR Driver mode
+  const [qrMode,       setQrMode]       = useState(false)
+  const [qrInput,      setQrInput]      = useState('')
+  const [driverInfo,   setDriverInfo]   = useState<DriverQrInfo | null>(null)
+  const [qrLookupErr,  setQrLookupErr]  = useState('')
+  const [qrLooking,    setQrLooking]    = useState(false)
+
   // Session state
   const [session,     setSession]     = useState<ParkingSession | null>(null)
   const [modalOpen,   setModalOpen]   = useState(false)
@@ -231,9 +239,14 @@ export default function CheckIn() {
   async function handleCreateSession() {
     setSubmitError('')
 
-    // Xe đạp thường không có biển số chính thức nên không bắt buộc nhập —
-    // hệ thống (BE) sẽ tự sinh mã quản lý nội bộ nếu để trống.
-    if (!plate.trim() && vehicleType !== 'bicycle') {
+    if (qrMode) {
+      if (!driverInfo) {
+        const message = 'Vui lòng quét QR driver trước.'
+        setSubmitError(message)
+        toast.error(message)
+        return
+      }
+    } else if (!plate.trim() && vehicleType !== 'bicycle') {
       const message = 'Vui lòng nhận diện hoặc nhập biển số xe.'
       setSubmitError(message)
       toast.error(message)
@@ -253,12 +266,21 @@ export default function CheckIn() {
 
     setSubmitting(true)
     try {
-      const newSession = await checkInSession({
-        slotId:       targetSlot.id,
-        licensePlate: plate.trim() ? plate.trim().toUpperCase() : undefined,
-        vehicleType,
-        gateInId:     entryGate || undefined,
-      })
+      const newSession = await checkInSession(
+        qrMode && driverInfo
+          ? {
+              slotId:        targetSlot.id,
+              driverQrToken: qrInput.trim(),
+              vehicleTypeId: driverInfo.vehicleType.id,
+              gateInId:      entryGate || undefined,
+            }
+          : {
+              slotId:       targetSlot.id,
+              licensePlate: plate.trim() ? plate.trim().toUpperCase() : undefined,
+              vehicleType,
+              gateInId:     entryGate || undefined,
+            }
+      )
 
       updateSlot(targetSlot.id, 'occupied')
 
@@ -286,6 +308,29 @@ export default function CheckIn() {
     setNotes('')
     setSubmitError('')
     setSession(null)
+    setQrInput('')
+    setDriverInfo(null)
+    setQrLookupErr('')
+  }
+
+  async function handleQrLookup(token: string) {
+    if (!token.trim()) return
+    setQrLooking(true)
+    setQrLookupErr('')
+    setDriverInfo(null)
+    try {
+      const info = await lookupDriverByQr(token.trim())
+      setDriverInfo(info)
+      // Auto-set vehicleType từ account driver để tìm slot đúng loại xe
+      const code = info.vehicleType?.code?.toLowerCase()
+      if (code === 'car') setVehicleType('car')
+      else if (code === 'bicycle') setVehicleType('bicycle')
+      else setVehicleType('motorbike')
+    } catch (err: any) {
+      setQrLookupErr(err?.response?.data?.message ?? 'Mã QR không hợp lệ')
+    } finally {
+      setQrLooking(false)
+    }
   }
 
   const availableCount = slots.filter(
@@ -300,29 +345,98 @@ export default function CheckIn() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* ── CỘT TRÁI: Camera LPR ── */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-1">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-              <Car className="w-4 h-4 text-blue-600" />
+        {/* ── CỘT TRÁI: Camera LPR (ẩn khi QR mode) ── */}
+        {!qrMode && (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-1">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                <Car className="w-4 h-4 text-blue-600" />
+              </div>
+              <h2 className="font-semibold text-gray-900">Nhận diện biển số (LPR)</h2>
             </div>
-            <h2 className="font-semibold text-gray-900">Nhận diện biển số (LPR)</h2>
+            <LPRCamera plate={plate} onPlateChange={setPlate} plateOptional={vehicleType === 'bicycle'} />
           </div>
-          <LPRCamera plate={plate} onPlateChange={setPlate} plateOptional={vehicleType === 'bicycle'} />
-        </div>
+        )}
 
         {/* ── CỘT PHẢI: Form + AI ── */}
         <div className="space-y-4">
           {/* Form thông tin */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center">
-                <ClipboardList className="w-4 h-4 text-violet-600" />
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center">
+                  <ClipboardList className="w-4 h-4 text-violet-600" />
+                </div>
+                <h2 className="font-semibold text-gray-900">Thông tin xe vào</h2>
               </div>
-              <h2 className="font-semibold text-gray-900">Thông tin xe vào</h2>
+              {/* Toggle mode */}
+              <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
+                <button
+                  type="button"
+                  onClick={() => { setQrMode(false); setDriverInfo(null); setQrInput(''); setQrLookupErr('') }}
+                  className={`px-3 py-1.5 flex items-center gap-1 transition-colors ${
+                    !qrMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Car className="w-3.5 h-3.5" /> Nhập tay
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQrMode(true)}
+                  className={`px-3 py-1.5 flex items-center gap-1 transition-colors ${
+                    qrMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <QrCode className="w-3.5 h-3.5" /> Quét QR Driver
+                </button>
+              </div>
             </div>
 
             <div className="space-y-4">
+              {/* QR Driver mode */}
+              {qrMode && (
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Mã QR tài xế
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={qrInput}
+                      onChange={(e) => setQrInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleQrLookup(qrInput)}
+                      placeholder="Quét QR hoặc nhập token..."
+                      autoFocus
+                      className="flex-1 px-3 py-2.5 text-sm rounded-xl border border-gray-300
+                                 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleQrLookup(qrInput)}
+                      disabled={qrLooking || !qrInput.trim()}
+                      className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium
+                                 hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5"
+                    >
+                      <ScanLine className="w-4 h-4" />
+                      {qrLooking ? '...' : 'Tra'}
+                    </button>
+                  </div>
+                  {qrLookupErr && (
+                    <p className="text-xs text-red-500 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5" /> {qrLookupErr}
+                    </p>
+                  )}
+                  {driverInfo && (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-1 text-sm">
+                      <p className="font-semibold text-emerald-800">✓ Tìm thấy tài xế</p>
+                      <p className="text-gray-700">Tên: <span className="font-medium">{driverInfo.fullName}</span></p>
+                      <p className="text-gray-700">Biển số: <span className="font-mono font-bold">{driverInfo.licensePlate}</span></p>
+                      <p className="text-gray-700">Loại xe: <span className="font-medium">{driverInfo.vehicleType?.name}</span></p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Loại xe */}
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-gray-700">Loại xe</label>
