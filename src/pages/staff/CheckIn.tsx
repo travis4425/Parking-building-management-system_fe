@@ -403,8 +403,15 @@ export default function CheckIn() {
                     <input
                       type="text"
                       value={qrInput}
-                      onChange={(e) => setQrInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleQrLookup(qrInput)}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setQrInput(v)
+                        // Auto-lookup khi barcode scanner gõ xong UUID (36 ký tự chuẩn)
+                        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v.trim())) {
+                          handleQrLookup(v.trim())
+                        }
+                      }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleQrLookup((e.target as HTMLInputElement).value)}
                       placeholder="Quét QR hoặc nhập token..."
                       autoFocus
                       className="flex-1 px-3 py-2.5 text-sm rounded-xl border border-gray-300
