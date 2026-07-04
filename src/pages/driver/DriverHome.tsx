@@ -62,11 +62,14 @@ export default function DriverHome() {
 
   const slots      = useSlotStore((s) => s.slots)
   const sessions   = useSessionStore((s) => s.sessions)
-  const { user }   = useAuthStore()
+  const { user, refreshUser } = useAuthStore()
   const pricingRules = usePricingStore((s) => s.rules)
   const peakRanges    = usePricingStore((s) => s.peakRanges)
   const loadPricing   = usePricingStore((s) => s.loadPricing)
   const isPricingLoaded = usePricingStore((s) => s.isLoaded)
+
+  // Refresh user data khi mount để lấy qrToken, licensePlate mới nhất
+  useEffect(() => { refreshUser() }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cập nhật "now" mỗi phút để phí tạm tính tự động tăng
   useEffect(() => {

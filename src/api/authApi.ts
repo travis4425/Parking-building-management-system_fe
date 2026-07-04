@@ -16,6 +16,9 @@ interface BeUser {
   phone?: string | null
   role: 'MANAGER' | 'STAFF' | 'DRIVER' | 'ADMIN'
   status?: string
+  licensePlate?: string | null
+  vehicleType?: { id: string; name: string; code: string } | null
+  qrToken?: string | null
 }
 
 interface BeLoginData {
@@ -45,6 +48,9 @@ function mapBeUser(beUser: BeUser): User {
     name: beUser.fullName ?? beUser.email,
     email: beUser.email,
     role: mapRole(beUser.role),
+    licensePlate: beUser.licensePlate ?? null,
+    vehicleType: beUser.vehicleType ?? null,
+    qrToken: beUser.qrToken ?? null,
   }
 }
 
@@ -60,6 +66,11 @@ export async function loginApi(username: string, password: string): Promise<Logi
     const message = err?.response?.data?.message ?? 'Tên đăng nhập hoặc mật khẩu không đúng'
     throw new Error(message)
   }
+}
+
+export async function getMeApi(): Promise<User> {
+  const res = await apiClient.get<{ success: boolean; data: BeUser }>('/auth/me')
+  return mapBeUser(res.data.data)
 }
 
 export async function logoutApi(): Promise<void> {

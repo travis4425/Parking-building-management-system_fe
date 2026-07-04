@@ -2,6 +2,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { User, UserRole } from '@/utils/types'
+import { getMeApi } from '@/api/authApi'
 
 interface AuthStore {
   user: User | null
@@ -12,6 +13,7 @@ interface AuthStore {
   login: (user: User, token: string, refreshToken?: string, rememberMe?: boolean) => void
   logout: () => void
   updateUser: (partial: Partial<User>) => void
+  refreshUser: () => Promise<void>  // Gọi GET /auth/me để cập nhật user data (qrToken, plate...)
 }
 
 // Lưu lựa chọn "remember me" riêng để dùng khi khởi tạo storage
@@ -46,6 +48,17 @@ export const useAuthStore = create<AuthStore>()(
         set((state) => ({
           user: state.user ? { ...state.user, ...partial } : null,
         })),
+
+      refreshUser: async () => {
+        try {
+          const fresh = await getMeApi()
+          set((state) => ({
+            user: state.user ? { ...state.user, ...fresh } : fresh,
+          }))
+        } catch {
+          // Không làm gì — keep user hiện tại nếu refresh thất bại
+        }
+      },
     }),
     {
       name: 'parking-auth',
